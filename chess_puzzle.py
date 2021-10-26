@@ -133,12 +133,12 @@ def main() -> None:
     '''
     Runs the play, using a text input prompt
     1. Ask for 'File name for initial configuration', keeps asking until a valid file provided
-       or user types 'QUIT'
+    or user types 'QUIT'
     2. Loads board from the file and displays initial configuration on the screen
     3. Ask for 'Next move of White', keeps asking until game over or user types 'QUIT'
     4. After white's move update the board and display on the screen.
     5. After black's move print message stating 'Next move of Black is ...'
-       and display on screen.
+    and display on screen.
     6. If user types 'QUIT' prompt for 'File name to store the configuration'
     7. After game over, print winner.
     '''
