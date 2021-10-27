@@ -14,7 +14,7 @@ def test_index2location1() -> None:
 
 wb1 = Bishop(1, 1, True)
 wr1 = Rook(1, 2, True)
-wb2 = Bishop(5, 1, True)
+wb2 = Bishop(5, 2, True)
 bk = King(2, 3, False)
 br1 = Rook(4, 3, False)
 br2 = Rook(2, 4, False)
