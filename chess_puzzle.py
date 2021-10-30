@@ -1,9 +1,39 @@
+import os
+from typing import TextIO
+
+# if not blank need to include trailing slash in FILEPATH
+FILEPATH = ''
+
+
 def location2index(loc: str) -> tuple[int, int]:
-    '''converts chess location to corresponding x and y coordinates'''
+    '''Converts chess location to corresponding x and y coordinates.
+    Raises an IOError if the input is not a valid chess location.
+    Assumed the input string will always be of length at least 2.
+    Bounds checking is not done so the return value needs to be
+    checked by the caller. Example:
+    >>> location2index('b5')
+    (2, 5)
+    '''
+    letter = loc[0]
+    digits = loc[1:]
+    x = 1 + ord(letter) - ord('a')
+    if x < 1 or x > 26 or not digits.isdigit():
+        raise IOError(f"'{loc}' is not a valid chess location")
+    y = int(digits)
+    if y < 1:
+        raise IOError(f"'{loc}' is not a valid chess location")
+    return x, y
 
 
 def index2location(x: int, y: int) -> str:
-    '''converts  pair of coordinates to corresponding location'''
+    '''Converts pair of coordinates to corresponding location.
+    Assumes that x and y will always be within bounds and does
+    not check. Example:
+    >>> index2location(3, 16)
+    'c16'
+    '''
+    letter = chr(x - 1 + ord('a'))
+    return f'{letter}{y}'
 
 
 class Piece:
@@ -13,25 +43,98 @@ class Piece:
 
     def __init__(self, pos_X: int, pos_Y: int, side_: bool):
         '''sets initial values'''
+        self.pos_x = pos_X
+        self.pos_y = pos_Y
+        self.side = side_
+
+    # type hint 'Board' is in quotes because it cannot be defined until
+    # Piece has been defined (forward reference)
+    @staticmethod
+    def create_pieces(csv: str, side_: bool, B: 'Board') -> None:
+        '''Populates board from text data given as a comma separated list.
+        Creates each new piece of the specified type at the given location
+        and pushes onto board array. Raises IOError if location out of bounds,
+        or invalid piece type, or space already occupied, or not exactly
+        one King is added, or if input string is empty.
+        Example:
+        >>> board = (5, [])
+        >>> Piece.create_pieces('Kd2, Ra1', True, board)
+        >>> board
+        (5, [King(4, 2, white), Rook(1, 1, white)])
+        '''
+        piece_defs = {'K': King, 'B': Bishop, 'R': Rook}
+        count_kings = 0
+        size, pieces = B
+
+        for piece_info in csv.split(','):
+            piece_info = piece_info.strip()
+            if len(piece_info) < 3:
+                raise IOError(f'\'{csv}\' is not a valid board setup')
+
+            # get type
+            piece_type = piece_info[0]
+            if piece_type == 'K':
+                count_kings += 1
+
+            # get location
+            loc = piece_info[1:]
+            x, y = location2index(loc)
+            if x > size or y > size:
+                raise IOError(f'\'{csv}\' is not a valid board setup')
+
+            # create piece
+            if piece_type in piece_defs:
+                constructor = piece_defs[piece_type]
+            else:
+                raise IOError(f'\'{csv}\' is not a valid board setup')
+            piece = constructor(x, y, side_)
+            pieces.append(piece)
+
+        if count_kings != 1:
+            raise IOError(f'\'{csv}\' is not a valid board setup')
+
+    def __str__(self):
+        name = self.__class__.__name__
+        side = 'white' if self.side else 'black'
+        return f'{name}({self.pos_x}, {self.pos_y}, {side})'
+
+    def __repr__(self):
+        return self.__str__()
 
 
 Board = tuple[int, list[Piece]]
 
 
 def is_piece_at(pos_X: int, pos_Y: int, B: Board) -> bool:
-    '''checks if there is piece at coordinates pox_X, pos_Y of board B'''
+    '''Checks if there is piece at coordinates pox_X, pos_Y of board B.
+    Assumes that x and y will always be within bounds and does not check.
+    Example:
+    >>> is_piece_at(1, 1, board)
+    True
+    '''
+    size, pieces = B
+    return any(p.pos_x == pos_X and p.pos_y == pos_Y for p in pieces)
 
 
 def piece_at(pos_X: int, pos_Y: int, B: Board) -> Piece:
     '''
     returns the piece at coordinates pox_X, pos_Y of board B
     assumes some piece at coordinates pox_X, pos_Y of board B is present
+    Example:
+    >>> piece_at(1, 1, board)
+    Rook(1, 1, white)
     '''
+    for piece in B[1]:
+        if piece.pos_x == pos_X and piece.pos_y == pos_Y:
+            break
+    # return needs to be outside loop for MyPy type checking
+    return piece
 
 
 class Rook(Piece):
     def __init__(self, pos_X: int, pos_Y: int, side_: bool):
         '''sets initial values by calling the constructor of Piece'''
+        super().__init__(pos_X, pos_Y, side_)
 
     def can_reach(self, pos_X: int, pos_Y: int, B: Board) -> bool:
         '''
@@ -61,6 +164,8 @@ class Rook(Piece):
 class Bishop(Piece):
     def __init__(self, pos_X: int, pos_Y: int, side_: bool):
         '''sets initial values by calling the constructor of Piece'''
+        super().__init__(pos_X, pos_Y, side_)
+
     def can_reach(self, pos_X: int, pos_Y: int, B: Board) -> bool:
         '''checks if this bishop can move to coordinates pos_X, pos_Y on board B according to rule [Rule1] and [Rule4]'''
     def can_move_to(self, pos_X: int, pos_Y: int, B: Board) -> bool:
@@ -75,6 +180,8 @@ class Bishop(Piece):
 class King(Piece):
     def __init__(self, pos_X: int, pos_Y: int, side_: bool):
         '''sets initial values by calling the constructor of Piece'''
+        super().__init__(pos_X, pos_Y, side_)
+
     def can_reach(self, pos_X: int, pos_Y: int, B: Board) -> bool:
         '''checks if this king can move to coordinates pos_X, pos_Y on board B according to rule [Rule3] and [Rule4]'''
     def can_move_to(self, pos_X: int, pos_Y: int, B: Board) -> bool:
@@ -106,8 +213,43 @@ def is_checkmate(side: bool, B: Board) -> bool:
 def read_board(filename: str) -> Board:
     '''
     reads board configuration from file in current directory in plain format
-    raises IOError exception if file is not valid (see section Plain board configurations)
+    raises IOError exception if file is not valid (see section Plain board configurations).
+    Raises FileNotFoundError if valid file cannot be located.
+    >>> read_board('board_examp.txt')
+    (5, [Bishop(1, 1, white), Rook(1, 2, white), ......... ])
     '''
+    fullname = FILEPATH + filename
+    with open(fullname, 'r') as f:
+        board = read_board_txt(f)
+    return board
+
+
+def read_board_txt(stream: TextIO) -> Board:
+    '''Reads board configuration from a text IO stream.
+    Raises IOError exception if text does not represent
+    a valid board. Example:
+    >>> from io import StringIO
+    >>> stream = StringIO('4 \n Kd2 \n Kd4')
+    >>> read_board_txt(stream)
+    (4, [King(4, 2, white), King(4, 4, black)])
+    '''
+    # read size
+    line1 = stream.readline().strip()
+    if not line1.isdigit():
+        raise IOError(f'first line \'{line1}\' is not valid size')
+    size = int(line1)
+    if size < 1 or size > 26:
+        raise IOError(f'first line \'{line1}\' is not valid size')
+
+    # populate white pieces
+    board: Board = (size, [])
+    white_data = stream.readline()
+    Piece.create_pieces(white_data, True, board)
+
+    # add black pieces
+    black_data = stream.readline()
+    Piece.create_pieces(black_data, False, board)
+    return board
 
 
 def save_board(filename: str) -> None:
