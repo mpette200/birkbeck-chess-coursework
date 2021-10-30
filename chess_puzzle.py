@@ -1,8 +1,9 @@
-import os
-from typing import TextIO
+from typing import TextIO, Optional
 
 # if not blank need to include trailing slash in FILEPATH
 FILEPATH = ''
+MSG_IOERROR = 'is not valid'
+CMD_QUIT = 'QUIT'
 
 
 def location2index(loc: str) -> tuple[int, int]:
@@ -18,10 +19,10 @@ def location2index(loc: str) -> tuple[int, int]:
     digits = loc[1:]
     x = 1 + ord(letter) - ord('a')
     if x < 1 or x > 26 or not digits.isdigit():
-        raise IOError(f"'{loc}' is not a valid chess location")
+        raise IOError(f"'{loc}' {MSG_IOERROR}")
     y = int(digits)
     if y < 1:
-        raise IOError(f"'{loc}' is not a valid chess location")
+        raise IOError(f"'{loc}' {MSG_IOERROR}")
     return x, y
 
 
@@ -40,6 +41,7 @@ class Piece:
     pos_x: int
     pos_y: int
     side: bool  # True for White and False for Black
+    unicode: str
 
     def __init__(self, pos_X: int, pos_Y: int, side_: bool):
         '''sets initial values'''
@@ -69,7 +71,7 @@ class Piece:
         for piece_info in csv.split(','):
             piece_info = piece_info.strip()
             if len(piece_info) < 3:
-                raise IOError(f'\'{csv}\' is not a valid board setup')
+                raise IOError(f'\'{csv}\' {MSG_IOERROR}')
 
             # get type
             piece_type = piece_info[0]
@@ -79,26 +81,36 @@ class Piece:
             # get location
             loc = piece_info[1:]
             x, y = location2index(loc)
-            if x > size or y > size:
-                raise IOError(f'\'{csv}\' is not a valid board setup')
+            if x > size or y > size or is_piece_at(x, y, B):
+                raise IOError(f'\'{csv}\' {MSG_IOERROR}')
 
             # create piece
             if piece_type in piece_defs:
                 constructor = piece_defs[piece_type]
             else:
-                raise IOError(f'\'{csv}\' is not a valid board setup')
+                raise IOError(f'\'{csv}\' {MSG_IOERROR}')
             piece = constructor(x, y, side_)
             pieces.append(piece)
 
         if count_kings != 1:
-            raise IOError(f'\'{csv}\' is not a valid board setup')
+            raise IOError(f'\'{csv}\' {MSG_IOERROR}')
 
-    def __str__(self):
+    def __eq__(self, P) -> bool:
+        if not isinstance(P, Piece):
+            raise NotImplementedError()
+        return self.pos_x == P.pos_x \
+            and self.pos_y == P.pos_y \
+            and self.side == P.side
+
+    def __ne__(self, P) -> bool:
+        return not self.__eq__(P)
+
+    def __str__(self) -> str:
         name = self.__class__.__name__
         side = 'white' if self.side else 'black'
         return f'{name}({self.pos_x}, {self.pos_y}, {side})'
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return self.__str__()
 
 
@@ -135,6 +147,7 @@ class Rook(Piece):
     def __init__(self, pos_X: int, pos_Y: int, side_: bool):
         '''sets initial values by calling the constructor of Piece'''
         super().__init__(pos_X, pos_Y, side_)
+        self.unicode = '\u2656' if side_ else '\u265C'
 
     def can_reach(self, pos_X: int, pos_Y: int, B: Board) -> bool:
         '''
@@ -165,6 +178,7 @@ class Bishop(Piece):
     def __init__(self, pos_X: int, pos_Y: int, side_: bool):
         '''sets initial values by calling the constructor of Piece'''
         super().__init__(pos_X, pos_Y, side_)
+        self.unicode = '\u2657' if side_ else '\u265D'
 
     def can_reach(self, pos_X: int, pos_Y: int, B: Board) -> bool:
         '''checks if this bishop can move to coordinates pos_X, pos_Y on board B according to rule [Rule1] and [Rule4]'''
@@ -181,6 +195,7 @@ class King(Piece):
     def __init__(self, pos_X: int, pos_Y: int, side_: bool):
         '''sets initial values by calling the constructor of Piece'''
         super().__init__(pos_X, pos_Y, side_)
+        self.unicode = '\u2654' if side_ else '\u265A'
 
     def can_reach(self, pos_X: int, pos_Y: int, B: Board) -> bool:
         '''checks if this king can move to coordinates pos_X, pos_Y on board B according to rule [Rule3] and [Rule4]'''
@@ -212,11 +227,22 @@ def is_checkmate(side: bool, B: Board) -> bool:
 
 def read_board(filename: str) -> Board:
     '''
-    reads board configuration from file in current directory in plain format
-    raises IOError exception if file is not valid (see section Plain board configurations).
+    Reads board configuration from file in current directory in plain format.
+    Raises IOError exception if file is not valid (see section Plain board configurations).
     Raises FileNotFoundError if valid file cannot be located.
-    >>> read_board('board_examp.txt')
-    (5, [Bishop(1, 1, white), Rook(1, 2, white), ......... ])
+    Example:
+    >>> from pprint import pprint
+    >>> pprint(read_board('board_examp.txt'))
+    (5,
+    [Bishop(1, 1, white),
+    Rook(1, 2, white),
+    Bishop(5, 2, white),
+    Rook(1, 5, white),
+    King(3, 5, white),
+    King(2, 3, black),
+    Rook(4, 3, black),
+    Rook(2, 4, black),
+    Rook(5, 4, black)])
     '''
     fullname = FILEPATH + filename
     with open(fullname, 'r') as f:
@@ -233,21 +259,29 @@ def read_board_txt(stream: TextIO) -> Board:
     >>> read_board_txt(stream)
     (4, [King(4, 2, white), King(4, 4, black)])
     '''
+    def tolerant_readline(stream):
+        'fault tolerant readline that re-raises IOError upon any exception'
+        try:
+            line = stream.readline().strip()
+        except Exception:
+            raise IOError(f'file {MSG_IOERROR}')
+        return line
+
     # read size
-    line1 = stream.readline().strip()
+    line1 = tolerant_readline(stream)
     if not line1.isdigit():
-        raise IOError(f'first line \'{line1}\' is not valid size')
+        raise IOError(f"'{line1}' {MSG_IOERROR}")
     size = int(line1)
     if size < 1 or size > 26:
-        raise IOError(f'first line \'{line1}\' is not valid size')
+        raise IOError(f"'{line1}' {MSG_IOERROR}")
 
     # populate white pieces
     board: Board = (size, [])
-    white_data = stream.readline()
+    white_data = tolerant_readline(stream)
     Piece.create_pieces(white_data, True, board)
 
     # add black pieces
-    black_data = stream.readline()
+    black_data = tolerant_readline(stream)
     Piece.create_pieces(black_data, False, board)
     return board
 
@@ -269,6 +303,35 @@ def find_black_move(B: Board) -> tuple[Piece, int, int]:
 
 def conf2unicode(B: Board) -> str:
     '''converts board cofiguration B to unicode format string (see section Unicode board configurations)'''
+    space = '\u2001'
+    size, pieces = B
+    piece_array = [[space] * size for _ in range(size)]
+    for p in pieces:
+        # y starts from bottom upwards
+        i = size - p.pos_y
+        j = p.pos_x - 1
+        piece_array[i][j] = p.unicode
+    return '\n'.join(''.join(s) for s in piece_array)
+
+
+def prompt_file() -> Optional[Board]:
+    '''Prompts user for file, keeps asking until a valid file provided
+    or the user typed 'QUIT'. Returns the board populated with pieces
+    or None if user typed 'QUIT'.
+    '''
+    board = None
+    prefix = ''
+    file_prompt = 'File name for initial configuration:\n'
+    while True:
+        user_input = input(prefix + file_prompt)
+        if user_input == CMD_QUIT:
+            break
+        try:
+            board = read_board(user_input)
+            break
+        except (IOError, FileNotFoundError):
+            prefix = '\nThis is not a valid file. '
+    return board
 
 
 def main() -> None:
@@ -284,7 +347,14 @@ def main() -> None:
     6. If user types 'QUIT' prompt for 'File name to store the configuration'
     7. After game over, print winner.
     '''
+    while True:
+        board = prompt_file()
+        if board is None:
+            return
+        print('\nThe initial configuration is:')
+        print(conf2unicode(board) + '\n')
 
 
 if __name__ == '__main__':  # keep this in
     main()
+    pass

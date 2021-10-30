@@ -1,5 +1,6 @@
 import pytest
-from chess_puzzle import Bishop, King, Rook, Board, \
+from chess_puzzle import \
+    Bishop, King, Rook, Board, MSG_IOERROR, \
     location2index, index2location, is_piece_at, piece_at, \
     is_check, is_checkmate, read_board, conf2unicode
 
@@ -103,12 +104,12 @@ class TestBoardCreation:
         assert location2index('c8') == (3, 8)
         assert location2index('g12') == (7, 12)
 
-    def test_location2index_errors(self) -> None:
+    @pytest.mark.parametrize('locations', [
+        'bb', 'D3', 'ab95', 'a-9'
+    ])
+    def test_location2index_errors(self, locations: str) -> None:
         with pytest.raises(IOError):
-            location2index('bb')
-            location2index('D3')
-            location2index('ab95')
-            location2index('a-9')
+            location2index(locations)
 
     def test_index2location(self) -> None:
         assert index2location(1, 5) == 'a5'
@@ -119,6 +120,9 @@ class TestBoardCreation:
 
     def board_small_valid(self) -> Board:
         '''Small board for use across multiple tests
+        4
+        Kd2, Ra1, Bb2, Ba2
+        Bb3, Ra4, Kd4, Rc3
         ♜  ♚
          ♝♜ 
         ♗♗ ♔
@@ -139,7 +143,7 @@ class TestBoardCreation:
                  bb2_3, br1_4, bk4_4, br3_3])
         return b
 
-    def test_is_piece_at_occupied(self):
+    def test_is_piece_at_occupied(self) -> None:
         board = self.board_small_valid()
         assert is_piece_at(1, 1, board)
         assert is_piece_at(1, 2, board)
@@ -150,7 +154,7 @@ class TestBoardCreation:
         assert is_piece_at(4, 2, board)
         assert is_piece_at(4, 4, board)
 
-    def test_is_piece_at_empty_squares(self):
+    def test_is_piece_at_empty_squares(self) -> None:
         board = self.board_small_valid()
         assert not is_piece_at(1, 3, board)
         assert not is_piece_at(2, 1, board)
@@ -160,3 +164,38 @@ class TestBoardCreation:
         assert not is_piece_at(3, 4, board)
         assert not is_piece_at(4, 1, board)
         assert not is_piece_at(4, 3, board)
+
+    def test_piece_at_small_valid(self) -> None:
+        white = True
+        black = False
+        board = self.board_small_valid()
+        assert piece_at(1, 1, board) == Rook(1, 1, white)
+        assert piece_at(2, 3, board) == Bishop(2, 3, black)
+        assert piece_at(3, 3, board) == Rook(3, 3, black)
+        assert piece_at(4, 2, board) == King(4, 2, white)
+        assert piece_at(4, 4, board) == King(4, 4, black)
+
+    def test_read_board_valid(self) -> None:
+        expected_b = self.board_small_valid()
+        actual_b = read_board('board_small_valid.txt')
+        assert actual_b == expected_b
+
+    @pytest.mark.parametrize('filenames', [
+        'board_missing_row.txt',
+        'board_no_black_king.txt',
+        'board_no_white_king.txt',
+        'board_out_of_bounds.txt',
+        'board_two_coincide.txt',
+        'board_small_valid.png',
+    ])
+    def test_read_board_errors(self, filenames: str) -> None:
+        with pytest.raises(IOError) as excinfo:
+            read_board(filenames)
+        # IOError is alias of OSError since python 3.3
+        # and FileNotFoundError is a subclass of this
+        assert not isinstance(excinfo.value, FileNotFoundError)
+        assert MSG_IOERROR in str(excinfo.value)
+
+    def test_read_board_filenotfound(self) -> None:
+        with pytest.raises(FileNotFoundError):
+            read_board('NO__SUCH__FILE')

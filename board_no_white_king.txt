@@ -1,0 +1,3 @@
+4
+Ra1, Bb2, Ba2
+Bb3, Ra4, Kd4, Rc3
