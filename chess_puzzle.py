@@ -1,3 +1,4 @@
+import readline
 from typing import TextIO, Optional
 
 # if not blank need to include trailing slash in FILEPATH
@@ -100,7 +101,8 @@ class Piece:
             raise NotImplementedError()
         return self.pos_x == P.pos_x \
             and self.pos_y == P.pos_y \
-            and self.side == P.side
+            and self.side == P.side \
+            and type(self) == type(P)
 
     def __ne__(self, P) -> bool:
         return not self.__eq__(P)
@@ -319,6 +321,8 @@ def prompt_file() -> Optional[Board]:
     or the user typed 'QUIT'. Returns the board populated with pieces
     or None if user typed 'QUIT'.
     '''
+    # trick for tab: autocompletion
+    readline.parse_and_bind('tab: complete')
     board = None
     prefix = ''
     file_prompt = 'File name for initial configuration:\n'
@@ -331,6 +335,8 @@ def prompt_file() -> Optional[Board]:
             break
         except (IOError, FileNotFoundError):
             prefix = '\nThis is not a valid file. '
+    # end tab completion
+    readline.parse_and_bind('tab: ""')
     return board
 
 

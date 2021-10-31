@@ -65,9 +65,9 @@ def test_is_check1() -> None:
 
 
 def test_is_checkmate1() -> None:
-    br2b = Rook(2, 5, False)
+    br2b = Rook(4, 5, False)
     B2 = (5, [wb1, wr1, wb2, bk, br1, br2b, br3, wr2, wk])
-    assert not is_checkmate(True, B2)
+    assert is_checkmate(True, B2)
 
 
 def test_read_board1() -> None:
@@ -165,7 +165,19 @@ class TestBoardCreation:
         assert not is_piece_at(4, 1, board)
         assert not is_piece_at(4, 3, board)
 
+    def test__eq__and__ne__(self) -> None:
+        white = True
+        black = False
+        assert King(2, 3, white) == King(2, 3, white)
+        assert King(2, 3, white) != King(2, 3, black)
+        assert King(2, 3, white) != King(3, 3, white)
+        assert King(2, 3, white) != King(2, 2, white)
+        assert King(2, 3, white) != Rook(2, 3, white)
+        assert Rook(4, 2, black) == Rook(4, 2, black)
+        assert Bishop(16, 3, black) == Bishop(16, 3, black)
+
     def test_piece_at_small_valid(self) -> None:
+        '''relies on overloaded == operator'''
         white = True
         black = False
         board = self.board_small_valid()
@@ -176,6 +188,7 @@ class TestBoardCreation:
         assert piece_at(4, 4, board) == King(4, 4, black)
 
     def test_read_board_valid(self) -> None:
+        '''relies on overloaded == operator'''
         expected_b = self.board_small_valid()
         actual_b = read_board('board_small_valid.txt')
         assert actual_b == expected_b
