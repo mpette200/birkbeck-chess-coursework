@@ -226,19 +226,34 @@ class TestBoardCreation:
 # Test moving of pieces
 # --------------------------------
 class TestMovePieces:
+
     # all of these assume that board reading is correct
-    def test_rook_can_reach_valid(self) -> None:
+    def rook_test_board(self) -> Board:
         '''
-        ♜  ♚
-         ♝♜ 
-        ♗♗ ♔
+         ♜ ♚
+            
+         ♗ ♔
         ♖   
         '''
         layout = StringIO(
             '''4
-            Kd2, Ra1, Bb2, Ba2
-            Bb3, Ra4, Kd4, Rc3''')
-        board = read_board_txt(layout)
-        Ra4: Rook = cast(Rook, piece_at(1, 4, board))
-        print(Ra4)
-        assert Ra4.can_reach(2, 4, board)
+            Kd2, Ra1, Bb2
+            Rb4, Kd4''')
+        return read_board_txt(layout)
+
+    def test_rook_can_reach_valid_locs(self) -> None:
+        board = self.rook_test_board()
+        Rb4: Rook = cast(Rook, piece_at(2, 4, board))
+        assert Rb4.can_reach(1, 4, board)
+        assert Rb4.can_reach(3, 4, board)
+        assert Rb4.can_reach(2, 3, board)
+        assert Rb4.can_reach(2, 2, board)
+
+    def test_rook_can_reach_isfalse_ifinvalid(self) -> None:
+        board = self.rook_test_board()
+        Rb4: Rook = cast(Rook, piece_at(2, 4, board))
+        assert not Rb4.can_reach(3, 3, board)
+        assert not Rb4.can_reach(4, 4, board)
+        assert not Rb4.can_reach(2, 4, board)
+        assert not Rb4.can_reach(2, 1, board)
+        assert not Rb4.can_reach(4, 2, board)

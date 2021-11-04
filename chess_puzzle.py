@@ -158,28 +158,18 @@ class Rook(Piece):
         Hint: use is_piece_at
         '''
         size = B[0]
-        # within bounds, on same row, not leap over, not blocked,
-        # not occupied by same colour
         is_in_bounds = 0 < pos_X <= size and 0 < pos_Y <= size
         is_same_row = self.pos_y == pos_Y
         is_same_column = self.pos_x == pos_X
         if is_in_bounds and (is_same_row or is_same_column):
-            if is_same_row:
-                start = 1 + min(self.pos_x, pos_X)
-                stop = max(self.pos_x, pos_X)
-                path = ((x, pos_Y) for x in range(start, stop))
-            elif is_same_column:
-                start = 1 + min(self.pos_y, pos_Y)
-                stop = max(self.pos_y, pos_Y)
-                path = ((pos_X, y) for y in range(start, stop))
-            is_leap_over = any(is_piece_at(x, y, B) for x, y in path)
-            # path does not include final destination
-            # check if can capture or blocked
+            # if destination occupied can capture if colour is different
             if is_piece_at(pos_X, pos_Y, B):
                 piece = piece_at(pos_X, pos_Y, B)
                 is_blocked = piece.side == self.side
+                # is also True if the piece coincides with itself
             else:
                 is_blocked = False
+            is_leap_over = self.is_leap_over(pos_X, pos_Y, B)
             return not is_leap_over and not is_blocked
         else:
             return False
@@ -201,6 +191,26 @@ class Rook(Piece):
         returns new board resulting from move of this rook to coordinates pos_X, pos_Y on board B
         assumes this move is valid according to chess rules
         '''
+    def is_leap_over(self, pos_X, pos_Y, B):
+        '''
+        Checks whether piece needs to leap over another piece
+        to reach destination. Assumes destination is in same
+        column or row as piece. Does not include the start square
+        or finish square.
+        '''
+        is_same_row = self.pos_y == pos_Y
+        is_same_column = self.pos_x == pos_X
+        if is_same_row:
+            start = 1 + min(self.pos_x, pos_X)
+            stop = max(self.pos_x, pos_X)
+            path = ((x, pos_Y) for x in range(start, stop))
+        elif is_same_column:
+            start = 1 + min(self.pos_y, pos_Y)
+            stop = max(self.pos_y, pos_Y)
+            path = ((pos_X, y) for y in range(start, stop))
+        # path does not include final destination or starting square
+        # path may also be in reverse order
+        return any(is_piece_at(x, y, B) for x, y in path)
 
 
 class Bishop(Piece):
@@ -242,6 +252,10 @@ def is_check(side: bool, B: Board) -> bool:
     checks if configuration of B is check for side
     Hint: use can_reach
     '''
+    get_king = filter(lambda p: type(p) is King and p.side == side, B[1])
+    king = next(get_king)
+    pieces = filter(lambda p: p.side != side, B[1])
+    return any(p.can_reach(king.pos_x, king.pos_y, B) for p in pieces)
 
 
 def is_checkmate(side: bool, B: Board) -> bool:
@@ -391,5 +405,5 @@ def main() -> None:
 
 
 if __name__ == '__main__':  # keep this in
-    main()
+    # main()
     pass
