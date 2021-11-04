@@ -1,8 +1,10 @@
 import pytest
+from typing import cast
+from io import StringIO
 from chess_puzzle import \
     Bishop, King, Rook, Board, MSG_IOERROR, \
     location2index, index2location, is_piece_at, piece_at, \
-    is_check, is_checkmate, read_board, conf2unicode
+    is_check, is_checkmate, read_board, conf2unicode, read_board_txt
 
 # --------------------------------
 # Initial tests from starter code
@@ -105,7 +107,10 @@ class TestBoardCreation:
         assert location2index('g12') == (7, 12)
 
     @pytest.mark.parametrize('locations', [
-        'bb', 'D3', 'ab95', 'a-9'
+        'bb',
+        'D3',
+        'ab95',
+        'a-9'
     ])
     def test_location2index_errors(self, locations: str) -> None:
         with pytest.raises(IOError):
@@ -139,8 +144,9 @@ class TestBoardCreation:
         bk4_4 = King(4, 4, black)
         br3_3 = Rook(3, 3, black)
 
-        b = (4, [wk4_2, wr1_1, wb2_2, wb1_2,
-                 bb2_3, br1_4, bk4_4, br3_3])
+        # change the order around to be sure test doesn't depend on order
+        b = (4, [wr1_1, wb2_2, wb1_2, wk4_2,
+                 bb2_3, br1_4, br3_3, bk4_4])
         return b
 
     def test_is_piece_at_occupied(self) -> None:
@@ -189,9 +195,11 @@ class TestBoardCreation:
 
     def test_read_board_valid(self) -> None:
         '''relies on overloaded == operator'''
-        expected_b = self.board_small_valid()
-        actual_b = read_board('board_small_valid.txt')
-        assert actual_b == expected_b
+        size_a, pieces_a = self.board_small_valid()
+        size_b, pieces_b = read_board('board_small_valid.txt')
+        assert size_a == size_b
+        assert all(p in pieces_a for p in pieces_b)
+        assert all(p in pieces_b for p in pieces_a)
 
     @pytest.mark.parametrize('filenames', [
         'board_missing_row.txt',
@@ -212,3 +220,25 @@ class TestBoardCreation:
     def test_read_board_filenotfound(self) -> None:
         with pytest.raises(FileNotFoundError):
             read_board('NO__SUCH__FILE')
+
+
+# --------------------------------
+# Test moving of pieces
+# --------------------------------
+class TestMovePieces:
+    # all of these assume that board reading is correct
+    def test_rook_can_reach_valid(self) -> None:
+        '''
+        ♜  ♚
+         ♝♜ 
+        ♗♗ ♔
+        ♖   
+        '''
+        layout = StringIO(
+            '''4
+            Kd2, Ra1, Bb2, Ba2
+            Bb3, Ra4, Kd4, Rc3''')
+        board = read_board_txt(layout)
+        Ra4: Rook = cast(Rook, piece_at(1, 4, board))
+        print(Ra4)
+        assert Ra4.can_reach(2, 4, board)

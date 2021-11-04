@@ -157,6 +157,33 @@ class Rook(Piece):
         on board B according to rule [Rule2] and [Rule4](see section Intro)
         Hint: use is_piece_at
         '''
+        size = B[0]
+        # within bounds, on same row, not leap over, not blocked,
+        # not occupied by same colour
+        is_in_bounds = 0 < pos_X <= size and 0 < pos_Y <= size
+        is_same_row = self.pos_y == pos_Y
+        is_same_column = self.pos_x == pos_X
+        if is_in_bounds and (is_same_row or is_same_column):
+            if is_same_row:
+                start = 1 + min(self.pos_x, pos_X)
+                stop = max(self.pos_x, pos_X)
+                path = ((x, pos_Y) for x in range(start, stop))
+            elif is_same_column:
+                start = 1 + min(self.pos_y, pos_Y)
+                stop = max(self.pos_y, pos_Y)
+                path = ((pos_X, y) for y in range(start, stop))
+            is_leap_over = any(is_piece_at(x, y, B) for x, y in path)
+            # path does not include final destination
+            # check if can capture or blocked
+            if is_piece_at(pos_X, pos_Y, B):
+                piece = piece_at(pos_X, pos_Y, B)
+                is_blocked = piece.side == self.side
+            else:
+                is_blocked = False
+            return not is_leap_over and not is_blocked
+        else:
+            return False
+
     def can_move_to(self, pos_X: int, pos_Y: int, B: Board) -> bool:
         '''
         checks if this rook can move to coordinates pos_X, pos_Y
@@ -261,7 +288,7 @@ def read_board_txt(stream: TextIO) -> Board:
     >>> read_board_txt(stream)
     (4, [King(4, 2, white), King(4, 4, black)])
     '''
-    def tolerant_readline(stream):
+    def tolerant_readline(stream: TextIO) -> str:
         'fault tolerant readline that re-raises IOError upon any exception'
         try:
             line = stream.readline().strip()
@@ -333,7 +360,9 @@ def prompt_file() -> Optional[Board]:
         try:
             board = read_board(user_input)
             break
-        except (IOError, FileNotFoundError):
+        except IOError:
+            # IOError is alias for OSError
+            # and also parent of FileNotFoundError
             prefix = '\nThis is not a valid file. '
     # end tab completion
     readline.parse_and_bind('tab: ""')
