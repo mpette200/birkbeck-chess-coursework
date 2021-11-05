@@ -96,7 +96,23 @@ class Piece:
         if count_kings != 1:
             raise IOError(f'\'{csv}\' {MSG_IOERROR}')
 
-    def __eq__(self, P) -> bool:
+    def is_destination_blocked(
+            self, pos_X: int, pos_Y: int, B: 'Board') -> bool:
+        '''Checks whether destination square is empty or occupied by
+        a piece of the same or a different colour. If different colour the
+        piece can be captured; if same colour the piece blocks the destination.
+        '''
+        if is_piece_at(pos_X, pos_Y, B):
+            piece = piece_at(pos_X, pos_Y, B)
+            # is also True if the piece coincides with itself
+            return piece.side == self.side
+        return False
+
+    def can_reach(self, pos_X: int, pos_Y: int, B: 'Board') -> bool:
+        '''Abstract method needs listing here to avoid Mypy warnings.
+        '''
+
+    def __eq__(self, P: object) -> bool:
         if not isinstance(P, Piece):
             raise NotImplementedError()
         return self.pos_x == P.pos_x \
@@ -104,7 +120,7 @@ class Piece:
             and self.side == P.side \
             and type(self) == type(P)
 
-    def __ne__(self, P) -> bool:
+    def __ne__(self, P: object) -> bool:
         return not self.__eq__(P)
 
     def __str__(self) -> str:
@@ -162,13 +178,7 @@ class Rook(Piece):
         is_same_row = self.pos_y == pos_Y
         is_same_column = self.pos_x == pos_X
         if is_in_bounds and (is_same_row or is_same_column):
-            # if destination occupied can capture if colour is different
-            if is_piece_at(pos_X, pos_Y, B):
-                piece = piece_at(pos_X, pos_Y, B)
-                is_blocked = piece.side == self.side
-                # is also True if the piece coincides with itself
-            else:
-                is_blocked = False
+            is_blocked = self.is_destination_blocked(pos_X, pos_Y, B)
             is_leap_over = self.is_leap_over(pos_X, pos_Y, B)
             return not is_leap_over and not is_blocked
         else:
@@ -191,12 +201,11 @@ class Rook(Piece):
         returns new board resulting from move of this rook to coordinates pos_X, pos_Y on board B
         assumes this move is valid according to chess rules
         '''
-    def is_leap_over(self, pos_X, pos_Y, B):
+    def is_leap_over(self, pos_X: int, pos_Y: int, B: Board) -> bool:
         '''
         Checks whether piece needs to leap over another piece
-        to reach destination. Assumes destination is in same
-        column or row as piece. Does not include the start square
-        or finish square.
+        to reach destination. Assumes destination is a valid move for
+        the piece. Does not include the start square or finish square.
         '''
         is_same_row = self.pos_y == pos_Y
         is_same_column = self.pos_x == pos_X
@@ -221,6 +230,16 @@ class Bishop(Piece):
 
     def can_reach(self, pos_X: int, pos_Y: int, B: Board) -> bool:
         '''checks if this bishop can move to coordinates pos_X, pos_Y on board B according to rule [Rule1] and [Rule4]'''
+        size = B[0]
+        is_in_bounds = 0 < pos_X <= size and 0 < pos_Y <= size
+        is_diagonal = abs(pos_X - self.pos_x) == abs(pos_Y - self.pos_y)
+        if is_in_bounds and is_diagonal:
+            is_blocked = self.is_destination_blocked(pos_X, pos_Y, B)
+            is_leap_over = self.is_leap_over(pos_X, pos_Y, B)
+            return not is_leap_over and not is_blocked
+        else:
+            return False
+
     def can_move_to(self, pos_X: int, pos_Y: int, B: Board) -> bool:
         '''checks if this bishop can move to coordinates pos_X, pos_Y on board B according to all chess rules'''
     def move_to(self, pos_X: int, pos_Y: int, B: Board) -> Board:
@@ -228,6 +247,24 @@ class Bishop(Piece):
         returns new board resulting from move of this bishop to coordinates pos_X, pos_Y on board B
         assumes this move is valid according to chess rules
         '''
+    def is_leap_over(self, pos_X: int, pos_Y: int, B: Board) -> bool:
+        '''
+        Checks whether piece needs to leap over another piece
+        to reach destination. Assumes destination is a valid move for
+        the piece. Does not include the start square or finish square.
+        '''
+        start_x = 1 + min(self.pos_x, pos_X)
+        stop_x = max(self.pos_x, pos_X)
+        x_range = range(start_x, stop_x)
+
+        start_y = 1 + min(self.pos_y, pos_Y)
+        stop_y = max(self.pos_y, pos_Y)
+        y_range = range(start_y, stop_y)
+
+        path = ((x, y) for x, y in zip(x_range, y_range))
+        # path does not include final destination or starting square
+        # path may also be in reverse order
+        return any(is_piece_at(x, y, B) for x, y in path)
 
 
 class King(Piece):
@@ -405,5 +442,5 @@ def main() -> None:
 
 
 if __name__ == '__main__':  # keep this in
-    # main()
+    main()
     pass

@@ -1,5 +1,4 @@
 import pytest
-from typing import cast
 from io import StringIO
 from chess_puzzle import \
     Bishop, King, Rook, Board, MSG_IOERROR, \
@@ -243,7 +242,7 @@ class TestMovePieces:
 
     def test_rook_can_reach_valid_locs(self) -> None:
         board = self.rook_test_board()
-        Rb4: Rook = cast(Rook, piece_at(2, 4, board))
+        Rb4 = piece_at(2, 4, board)
         assert Rb4.can_reach(1, 4, board)
         assert Rb4.can_reach(3, 4, board)
         assert Rb4.can_reach(2, 3, board)
@@ -251,9 +250,39 @@ class TestMovePieces:
 
     def test_rook_can_reach_isfalse_ifinvalid(self) -> None:
         board = self.rook_test_board()
-        Rb4: Rook = cast(Rook, piece_at(2, 4, board))
+        Rb4 = piece_at(2, 4, board)
         assert not Rb4.can_reach(3, 3, board)
         assert not Rb4.can_reach(4, 4, board)
         assert not Rb4.can_reach(2, 4, board)
         assert not Rb4.can_reach(2, 1, board)
         assert not Rb4.can_reach(4, 2, board)
+
+    def bishop_test_board(self) -> Board:
+        '''
+        ♖  ♚
+            
+          ♝♔
+           ♜
+        '''
+        layout = StringIO(
+            '''4
+            Kd2, Ra4
+            Bc2, Kd4, Rd1''')
+        return read_board_txt(layout)
+
+    def test_bishop_can_reach_valid_locs(self) -> None:
+        board = self.bishop_test_board()
+        Bc2 = piece_at(3, 2, board)
+        assert Bc2.can_reach(2, 3, board)
+        assert Bc2.can_reach(1, 4, board)
+        assert Bc2.can_reach(4, 3, board)
+        assert Bc2.can_reach(2, 1, board)
+
+    def test_bishop_can_reach_isfalse_if_invalid(self) -> None:
+        board = self.bishop_test_board()
+        Bc2 = piece_at(3, 2, board)
+        assert not Bc2.can_reach(4, 1, board)
+        assert not Bc2.can_reach(3, 4, board)
+        assert not Bc2.can_reach(1, 2, board)
+        assert not Bc2.can_reach(3, 1, board)
+        assert not Bc2.can_reach(2, 2, board)
