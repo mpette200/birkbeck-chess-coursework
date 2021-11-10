@@ -108,6 +108,14 @@ class Piece:
             return piece.side == self.side
         return False
 
+    def is_inbounds(self, pos_X: int, pos_Y: int, B: 'Board') -> bool:
+        '''Returns true if the piece is within the boundary of the board
+        '''
+        size = B[0]
+        x_inbounds = 0 < pos_X <= size
+        y_inbounds = 0 < pos_Y <= size
+        return x_inbounds and y_inbounds
+
     def can_reach(self, pos_X: int, pos_Y: int, B: 'Board') -> bool:
         '''Abstract method needs listing here to avoid Mypy warnings.
         '''
@@ -124,6 +132,7 @@ class Piece:
         return not self.__eq__(P)
 
     def __str__(self) -> str:
+        '''For example:  King(4, 2, white)'''
         name = self.__class__.__name__
         side = 'white' if self.side else 'black'
         return f'{name}({self.pos_x}, {self.pos_y}, {side})'
@@ -173,11 +182,9 @@ class Rook(Piece):
         on board B according to rule [Rule2] and [Rule4](see section Intro)
         Hint: use is_piece_at
         '''
-        size = B[0]
-        is_in_bounds = 0 < pos_X <= size and 0 < pos_Y <= size
-        is_same_row = self.pos_y == pos_Y
-        is_same_column = self.pos_x == pos_X
-        if is_in_bounds and (is_same_row or is_same_column):
+        inbounds = self.is_inbounds(pos_X, pos_Y, B)
+        in_defined_moves = self.in_defined_moves(pos_X, pos_Y)
+        if inbounds and in_defined_moves:
             is_blocked = self.is_destination_blocked(pos_X, pos_Y, B)
             is_leap_over = self.is_leap_over(pos_X, pos_Y, B)
             return not is_leap_over and not is_blocked
@@ -201,6 +208,16 @@ class Rook(Piece):
         returns new board resulting from move of this rook to coordinates pos_X, pos_Y on board B
         assumes this move is valid according to chess rules
         '''
+
+    def in_defined_moves(self, pos_X: int, pos_Y: int) -> bool:
+        '''Rooks can only move along a row or a column.
+        Returns true if the move is along a row or column.
+        Checking for zero move is done elsewhere.
+        '''
+        is_same_row = self.pos_y == pos_Y
+        is_same_column = self.pos_x == pos_X
+        return is_same_row or is_same_column
+
     def is_leap_over(self, pos_X: int, pos_Y: int, B: Board) -> bool:
         '''
         Checks whether piece needs to leap over another piece
@@ -210,10 +227,12 @@ class Rook(Piece):
         is_same_row = self.pos_y == pos_Y
         is_same_column = self.pos_x == pos_X
         if is_same_row:
+            # important 1 + ...
             start = 1 + min(self.pos_x, pos_X)
             stop = max(self.pos_x, pos_X)
             path = ((x, pos_Y) for x in range(start, stop))
         elif is_same_column:
+            # important 1 + ...
             start = 1 + min(self.pos_y, pos_Y)
             stop = max(self.pos_y, pos_Y)
             path = ((pos_X, y) for y in range(start, stop))
@@ -230,10 +249,9 @@ class Bishop(Piece):
 
     def can_reach(self, pos_X: int, pos_Y: int, B: Board) -> bool:
         '''checks if this bishop can move to coordinates pos_X, pos_Y on board B according to rule [Rule1] and [Rule4]'''
-        size = B[0]
-        is_in_bounds = 0 < pos_X <= size and 0 < pos_Y <= size
-        is_diagonal = abs(pos_X - self.pos_x) == abs(pos_Y - self.pos_y)
-        if is_in_bounds and is_diagonal:
+        inbounds = self.is_inbounds(pos_X, pos_Y, B)
+        in_defined_moves = self.in_defined_moves(pos_X, pos_Y)
+        if inbounds and in_defined_moves:
             is_blocked = self.is_destination_blocked(pos_X, pos_Y, B)
             is_leap_over = self.is_leap_over(pos_X, pos_Y, B)
             return not is_leap_over and not is_blocked
@@ -247,16 +265,27 @@ class Bishop(Piece):
         returns new board resulting from move of this bishop to coordinates pos_X, pos_Y on board B
         assumes this move is valid according to chess rules
         '''
+
+    def in_defined_moves(self, pos_X: int, pos_Y: int) -> bool:
+        '''Bishops can only move along diagonals.
+        Returns true if move is along a diagonal.
+        Checking for zero move is done elsewhere.
+        '''
+        is_diagonal = abs(pos_X - self.pos_x) == abs(pos_Y - self.pos_y)
+        return is_diagonal
+
     def is_leap_over(self, pos_X: int, pos_Y: int, B: Board) -> bool:
         '''
         Checks whether piece needs to leap over another piece
         to reach destination. Assumes destination is a valid move for
         the piece. Does not include the start square or finish square.
         '''
+        # important 1 + ...
         start_x = 1 + min(self.pos_x, pos_X)
         stop_x = max(self.pos_x, pos_X)
         x_range = range(start_x, stop_x)
 
+        # important 1 + ...
         start_y = 1 + min(self.pos_y, pos_Y)
         stop_y = max(self.pos_y, pos_Y)
         y_range = range(start_y, stop_y)
@@ -275,6 +304,14 @@ class King(Piece):
 
     def can_reach(self, pos_X: int, pos_Y: int, B: Board) -> bool:
         '''checks if this king can move to coordinates pos_X, pos_Y on board B according to rule [Rule3] and [Rule4]'''
+        inbounds = self.is_inbounds(pos_X, pos_Y, B)
+        in_defined_moves = self.in_defined_moves(pos_X, pos_Y)
+        if inbounds and in_defined_moves:
+            is_blocked = self.is_destination_blocked(pos_X, pos_Y, B)
+            return not is_blocked
+        else:
+            return False
+
     def can_move_to(self, pos_X: int, pos_Y: int, B: Board) -> bool:
         '''checks if this king can move to coordinates pos_X, pos_Y on board B according to all chess rules'''
     def move_to(self, pos_X: int, pos_Y: int, B: Board) -> Board:
@@ -282,6 +319,15 @@ class King(Piece):
         returns new board resulting from move of this king to coordinates pos_X, pos_Y on board B
         assumes this move is valid according to chess rules
         '''
+
+    def in_defined_moves(self, pos_X: int, pos_Y: int) -> bool:
+        '''King can only move 1 square in any direction.
+        Returns true if the move is 1 square in any direction.
+        Checking for zero move is done elsewhere.
+        '''
+        x_delta = abs(self.pos_x - pos_X)
+        y_delta = abs(self.pos_y - pos_Y)
+        return x_delta <= 1 and y_delta <= 1
 
 
 def is_check(side: bool, B: Board) -> bool:

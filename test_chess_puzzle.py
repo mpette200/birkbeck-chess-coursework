@@ -213,6 +213,7 @@ class TestBoardCreation:
             read_board(filenames)
         # IOError is alias of OSError since python 3.3
         # and FileNotFoundError is a subclass of this
+        # this test should ignore any FileNotFoundError
         assert not isinstance(excinfo.value, FileNotFoundError)
         assert MSG_IOERROR in str(excinfo.value)
 
@@ -286,3 +287,38 @@ class TestMovePieces:
         assert not Bc2.can_reach(1, 2, board)
         assert not Bc2.can_reach(3, 1, board)
         assert not Bc2.can_reach(2, 2, board)
+        assert not Bc2.can_reach(3, 2, board)
+
+    def king_test_board(self) -> Board:
+        '''
+           ♚
+         ♖  
+          ♔ 
+           ♜
+        '''
+        layout = StringIO(
+            '''4
+            Kc2, Rb3
+            Kd4, Rd1
+            ''')
+        return read_board_txt(layout)
+
+    def test_king_can_reach_valid_locs(self) -> None:
+        board = self.king_test_board()
+        Kc2 = piece_at(3, 2, board)
+        assert Kc2.can_reach(3, 3, board)
+        assert Kc2.can_reach(4, 3, board)
+        assert Kc2.can_reach(2, 2, board)
+        assert Kc2.can_reach(4, 2, board)
+        assert Kc2.can_reach(2, 1, board)
+        assert Kc2.can_reach(3, 1, board)
+        assert Kc2.can_reach(4, 1, board)
+
+    def test_king_can_reach_isfalse_if_invalid(self) -> None:
+        board = self.king_test_board()
+        Kc2 = piece_at(3, 2, board)
+        assert not Kc2.can_reach(2, 3, board)
+        assert not Kc2.can_reach(3, 2, board)
+        assert not Kc2.can_reach(1, 1, board)
+        assert not Kc2.can_reach(4, 4, board)
+        assert not Kc2.can_reach(2, 4, board)
