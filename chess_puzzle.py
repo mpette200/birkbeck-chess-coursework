@@ -96,25 +96,50 @@ class Piece:
         if count_kings != 1:
             raise IOError(f'\'{csv}\' {MSG_IOERROR}')
 
+    @staticmethod
+    def is_inbounds(pos_X: int, pos_Y: int, B: 'Board') -> bool:
+        '''Returns true if the destination is within the boundary of the board
+        '''
+        size = B[0]
+        x_inbounds = 0 < pos_X <= size
+        y_inbounds = 0 < pos_Y <= size
+        return x_inbounds and y_inbounds
+
     def is_destination_blocked(
             self, pos_X: int, pos_Y: int, B: 'Board') -> bool:
         '''Checks whether destination square is empty or occupied by
         a piece of the same or a different colour. If different colour the
         piece can be captured; if same colour the piece blocks the destination.
+        >>> b = read_board('board_small_valid.txt')
+        >>> Kd2 = piece_at(4, 2, b)
+        >>> fmt = 'Kd2.is_destination_blocked({}, {}, b) -> {}'
+        >>> for i in range(1, 5):
+        ...    for j in range(1, 5):
+        ...       ans = Kd2.is_destination_blocked(i, j, b)
+        ...       print(fmt.format(i, j, ans))
+        ...
+        Kd2.is_destination_blocked(1, 1, b) -> True
+        Kd2.is_destination_blocked(1, 2, b) -> True
+        Kd2.is_destination_blocked(1, 3, b) -> False
+        Kd2.is_destination_blocked(1, 4, b) -> False
+        Kd2.is_destination_blocked(2, 1, b) -> False
+        Kd2.is_destination_blocked(2, 2, b) -> True
+        Kd2.is_destination_blocked(2, 3, b) -> False
+        Kd2.is_destination_blocked(2, 4, b) -> False
+        Kd2.is_destination_blocked(3, 1, b) -> False
+        Kd2.is_destination_blocked(3, 2, b) -> False
+        Kd2.is_destination_blocked(3, 3, b) -> False
+        Kd2.is_destination_blocked(3, 4, b) -> False
+        Kd2.is_destination_blocked(4, 1, b) -> False
+        Kd2.is_destination_blocked(4, 2, b) -> True
+        Kd2.is_destination_blocked(4, 3, b) -> False
+        Kd2.is_destination_blocked(4, 4, b) -> False
         '''
         if is_piece_at(pos_X, pos_Y, B):
             piece = piece_at(pos_X, pos_Y, B)
             # is also True if the piece coincides with itself
             return piece.side == self.side
         return False
-
-    def is_inbounds(self, pos_X: int, pos_Y: int, B: 'Board') -> bool:
-        '''Returns true if the piece is within the boundary of the board
-        '''
-        size = B[0]
-        x_inbounds = 0 < pos_X <= size
-        y_inbounds = 0 < pos_Y <= size
-        return x_inbounds and y_inbounds
 
     def can_reach(self, pos_X: int, pos_Y: int, B: 'Board') -> bool:
         '''Abstract method needs listing here to avoid Mypy warnings.
@@ -182,7 +207,7 @@ class Rook(Piece):
         on board B according to rule [Rule2] and [Rule4](see section Intro)
         Hint: use is_piece_at
         '''
-        inbounds = self.is_inbounds(pos_X, pos_Y, B)
+        inbounds = Piece.is_inbounds(pos_X, pos_Y, B)
         in_defined_moves = self.in_defined_moves(pos_X, pos_Y)
         if inbounds and in_defined_moves:
             is_blocked = self.is_destination_blocked(pos_X, pos_Y, B)
@@ -249,7 +274,7 @@ class Bishop(Piece):
 
     def can_reach(self, pos_X: int, pos_Y: int, B: Board) -> bool:
         '''checks if this bishop can move to coordinates pos_X, pos_Y on board B according to rule [Rule1] and [Rule4]'''
-        inbounds = self.is_inbounds(pos_X, pos_Y, B)
+        inbounds = Piece.is_inbounds(pos_X, pos_Y, B)
         in_defined_moves = self.in_defined_moves(pos_X, pos_Y)
         if inbounds and in_defined_moves:
             is_blocked = self.is_destination_blocked(pos_X, pos_Y, B)
@@ -304,7 +329,7 @@ class King(Piece):
 
     def can_reach(self, pos_X: int, pos_Y: int, B: Board) -> bool:
         '''checks if this king can move to coordinates pos_X, pos_Y on board B according to rule [Rule3] and [Rule4]'''
-        inbounds = self.is_inbounds(pos_X, pos_Y, B)
+        inbounds = Piece.is_inbounds(pos_X, pos_Y, B)
         in_defined_moves = self.in_defined_moves(pos_X, pos_Y)
         if inbounds and in_defined_moves:
             is_blocked = self.is_destination_blocked(pos_X, pos_Y, B)
