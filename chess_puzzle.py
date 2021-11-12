@@ -46,6 +46,9 @@ class Piece:
 
     def __init__(self, pos_X: int, pos_Y: int, side_: bool):
         '''sets initial values'''
+        if not (side_ is True or side_ is False):
+            raise ValueError('side_ must be True or False')
+            # can get hard to find bugs if side_ is for example NoneType
         self.pos_x = pos_X
         self.pos_y = pos_Y
         self.side = side_
@@ -423,7 +426,7 @@ def read_board_txt(stream: TextIO) -> Board:
     if not line1.isdigit():
         raise IOError(f"'{line1}' {MSG_IOERROR}")
     size = int(line1)
-    if size < 1 or size > 26:
+    if size < 2 or size > 26:
         raise IOError(f"'{line1}' {MSG_IOERROR}")
 
     # populate white pieces
@@ -514,4 +517,3 @@ def main() -> None:
 
 if __name__ == '__main__':  # keep this in
     main()
-    pass

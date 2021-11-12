@@ -322,3 +322,48 @@ class TestMovePieces:
         assert not Kc2.can_reach(1, 1, board)
         assert not Kc2.can_reach(4, 4, board)
         assert not Kc2.can_reach(2, 4, board)
+
+    def test_is_check_white_only(self) -> None:
+        '''
+          ♗ 
+          ♚ 
+        ♔♜  
+        ♖   
+        '''
+        b = read_board_txt(StringIO(
+            '''4
+            Ka2, Bc4, Ra1
+            Kc3, Rb2'''
+        ))
+        assert is_check(True, b)
+        assert not is_check(False, b)
+
+    def test_is_check_neither_side(self) -> None:
+        '''
+         ♚  
+           ♗
+          ♝ 
+        ♖ ♔ 
+        '''
+        b = read_board_txt(StringIO(
+            '''4
+            Kc1, Ra1, Bd3
+            Kb4, Bc2'''
+        ))
+        assert not is_check(True, b)
+        assert not is_check(False, b)
+
+    def test_is_check_both_sides(self) -> None:
+        '''
+            
+        ♜ ♖♔
+           ♚
+            
+        '''
+        b = read_board_txt(StringIO(
+            '''4
+            Kd3, Rc3
+            Kd2, Ra3'''
+        ))
+        assert is_check(True, b)
+        assert is_check(False, b)
