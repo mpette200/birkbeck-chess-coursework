@@ -102,6 +102,12 @@ class Piece:
     @staticmethod
     def is_inbounds(pos_X: int, pos_Y: int, B: 'Board') -> bool:
         '''Returns true if the destination is within the boundary of the board
+        Example:
+        >>> b = (4, [])
+        >>> Piece.is_inbounds(1, 1, b)
+        True
+        >>> Piece.is_inbounds(1, 5, b)
+        False
         '''
         size = B[0]
         x_inbounds = 0 < pos_X <= size
@@ -113,30 +119,21 @@ class Piece:
         '''Checks whether destination square is empty or occupied by
         a piece of the same or a different colour. If different colour the
         piece can be captured; if same colour the piece blocks the destination.
+        Example:
         >>> b = read_board('board_small_valid.txt')
         >>> Kd2 = piece_at(4, 2, b)
         >>> fmt = 'Kd2.is_destination_blocked({}, {}, b) -> {}'
-        >>> for i in range(1, 5):
-        ...    for j in range(1, 5):
-        ...       ans = Kd2.is_destination_blocked(i, j, b)
-        ...       print(fmt.format(i, j, ans))
+        >>> for i in range(1, 3):
+        ...     for j in range(1, 4):
+        ...         ans = Kd2.is_destination_blocked(i, j, b)
+        ...         print(fmt.format(i, j, ans))
         ...
         Kd2.is_destination_blocked(1, 1, b) -> True
         Kd2.is_destination_blocked(1, 2, b) -> True
         Kd2.is_destination_blocked(1, 3, b) -> False
-        Kd2.is_destination_blocked(1, 4, b) -> False
         Kd2.is_destination_blocked(2, 1, b) -> False
         Kd2.is_destination_blocked(2, 2, b) -> True
         Kd2.is_destination_blocked(2, 3, b) -> False
-        Kd2.is_destination_blocked(2, 4, b) -> False
-        Kd2.is_destination_blocked(3, 1, b) -> False
-        Kd2.is_destination_blocked(3, 2, b) -> False
-        Kd2.is_destination_blocked(3, 3, b) -> False
-        Kd2.is_destination_blocked(3, 4, b) -> False
-        Kd2.is_destination_blocked(4, 1, b) -> False
-        Kd2.is_destination_blocked(4, 2, b) -> True
-        Kd2.is_destination_blocked(4, 3, b) -> False
-        Kd2.is_destination_blocked(4, 4, b) -> False
         '''
         if is_piece_at(pos_X, pos_Y, B):
             piece = piece_at(pos_X, pos_Y, B)
@@ -176,7 +173,9 @@ def is_piece_at(pos_X: int, pos_Y: int, B: Board) -> bool:
     '''Checks if there is piece at coordinates pox_X, pos_Y of board B.
     Assumes that x and y will always be within bounds and does not check.
     Example:
-    >>> is_piece_at(1, 1, board)
+    >>> b = (5, [])
+    >>> Piece.create_pieces('Kd2, Ra1', True, b)
+    >>> is_piece_at(1, 1, b)
     True
     '''
     size, pieces = B
@@ -188,7 +187,9 @@ def piece_at(pos_X: int, pos_Y: int, B: Board) -> Piece:
     returns the piece at coordinates pox_X, pos_Y of board B
     assumes some piece at coordinates pox_X, pos_Y of board B is present
     Example:
-    >>> piece_at(1, 1, board)
+    >>> b = (5, [])
+    >>> Piece.create_pieces('Kd2, Ra1', True, b)
+    >>> piece_at(1, 1, b)
     Rook(1, 1, white)
     '''
     for piece in B[1]:
@@ -230,17 +231,77 @@ class Rook(Piece):
         - if yes, find the piece captured using piece_at
         - thirdly, construct new board resulting from move
         - finally, to check [Rule5], use is_check on new board
+
+        Example:
+        >>> from io import StringIO
+        >>> b = read_board_txt(StringIO("""4
+        ... Kd2, Ra1, Bb2
+        ... Rb4, Kd4"""))
+        >>> Rb4 = piece_at(2, 4, b)
+        >>> for i in range(1, 5):
+        ...     for j in range(1, 5):
+        ...         if Rb4.can_move_to(i, j, b):
+        ...             print(f'Rb4 can move -> ({i}, {j})')
+        ...
+        Rb4 can move -> (2, 2)
         '''
+        captured_piece = None
+        if self.can_reach(pos_X, pos_Y, B):
+            if is_piece_at(pos_X, pos_Y, B):
+                captured_piece = piece_at(pos_X, pos_Y, B)
+                B[1].remove(captured_piece)
+
+            # temporarily move the piece to see if in check
+            orig_X = self.pos_x
+            orig_Y = self.pos_y
+            self.pos_x = pos_X
+            self.pos_y = pos_Y
+            is_valid = not is_check(self.side, B)
+
+            # reverse move and replace captured piece
+            self.pos_x = orig_X
+            self.pos_y = orig_Y
+            if captured_piece is not None:
+                B[1].append(captured_piece)
+            return is_valid
+        else:
+            return False
+
     def move_to(self, pos_X: int, pos_Y: int, B: Board) -> Board:
         '''
         returns new board resulting from move of this rook to coordinates pos_X, pos_Y on board B
         assumes this move is valid according to chess rules
+        WARNING: this mutates the original board then returns the same board.
         '''
+        # WARNING: this mutates the original board then returns the same board
+        if is_piece_at(pos_X, pos_Y, B):
+            captured_piece = piece_at(pos_X, pos_Y, B)
+            B[1].remove(captured_piece)
+        self.pos_x = pos_X
+        self.pos_y = pos_Y
+        return B
 
     def in_defined_moves(self, pos_X: int, pos_Y: int) -> bool:
         '''Rooks can only move along a row or a column.
         Returns true if the move is along a row or column.
         Checking for zero move is done elsewhere.
+        Example:
+        >>> Rc3 = Rook(3, 3, True)
+        >>> b = (5, [Rc3])
+        >>> for x in range(1, 6):
+        ...     for y in range(1, 6):
+        ...         if Rc3.in_defined_moves(x, y):
+        ...             print(f'{x}, {y} is in defined moves')
+        ...
+        1, 3 is in defined moves
+        2, 3 is in defined moves
+        3, 1 is in defined moves
+        3, 2 is in defined moves
+        3, 3 is in defined moves
+        3, 4 is in defined moves
+        3, 5 is in defined moves
+        4, 3 is in defined moves
+        5, 3 is in defined moves
         '''
         is_same_row = self.pos_y == pos_Y
         is_same_column = self.pos_x == pos_X
@@ -251,6 +312,13 @@ class Rook(Piece):
         Checks whether piece needs to leap over another piece
         to reach destination. Assumes destination is a valid move for
         the piece. Does not include the start square or finish square.
+        Example:
+        >>> b = read_board('board_small_valid.txt')
+        >>> Ra4 = piece_at(1, 4, b)
+        >>> Ra4.is_leap_over(1, 2, b)
+        False
+        >>> Ra4.is_leap_over(1, 1, b)
+        True
         '''
         is_same_row = self.pos_y == pos_Y
         is_same_column = self.pos_x == pos_X
@@ -287,7 +355,42 @@ class Bishop(Piece):
             return False
 
     def can_move_to(self, pos_X: int, pos_Y: int, B: Board) -> bool:
-        '''checks if this bishop can move to coordinates pos_X, pos_Y on board B according to all chess rules'''
+        '''checks if this bishop can move to coordinates pos_X, pos_Y on board B according to all chess rules
+        Example:
+        >>> from io import StringIO
+        >>> b = read_board_txt(StringIO("""4
+        ... Kd2, Ra4
+        ... Bc2, Kd4, Rd1"""))
+        >>> Bc2 = piece_at(3, 2, b)
+        >>> for i in range(1, 5):
+        ...     for j in range(1, 5):
+        ...         if Bc2.can_move_to(i, j, b):
+        ...             print(f'Bc2 can move -> ({i}, {j})')
+        ...
+        Bc2 can move -> (1, 4)
+        '''
+        captured_piece = None
+        if self.can_reach(pos_X, pos_Y, B):
+            if is_piece_at(pos_X, pos_Y, B):
+                captured_piece = piece_at(pos_X, pos_Y, B)
+                B[1].remove(captured_piece)
+
+            # temporarily move the piece to see if in check
+            orig_X = self.pos_x
+            orig_Y = self.pos_y
+            self.pos_x = pos_X
+            self.pos_y = pos_Y
+            is_valid = not is_check(self.side, B)
+
+            # reverse move and replace captured piece
+            self.pos_x = orig_X
+            self.pos_y = orig_Y
+            if captured_piece is not None:
+                B[1].append(captured_piece)
+            return is_valid
+        else:
+            return False
+
     def move_to(self, pos_X: int, pos_Y: int, B: Board) -> Board:
         '''
         returns new board resulting from move of this bishop to coordinates pos_X, pos_Y on board B
@@ -341,7 +444,42 @@ class King(Piece):
             return False
 
     def can_move_to(self, pos_X: int, pos_Y: int, B: Board) -> bool:
-        '''checks if this king can move to coordinates pos_X, pos_Y on board B according to all chess rules'''
+        '''checks if this king can move to coordinates pos_X, pos_Y on board B according to all chess rules
+        Example:
+        >>> from io import StringIO
+        >>> b = read_board_txt(StringIO("""4
+        ... Kd2, Ra1, Bb2
+        ... Rb4, Kd4"""))
+        >>> Kd4 = piece_at(4, 4, b)
+        >>> for i in range(1, 5):
+        ...     for j in range(1, 5):
+        ...         if Kd4.can_move_to(i, j, b):
+        ...             print(f'Kd4 can move -> ({i}, {j})')
+        ...
+        Kd4 can move -> (3, 4)
+        '''
+        captured_piece = None
+        if self.can_reach(pos_X, pos_Y, B):
+            if is_piece_at(pos_X, pos_Y, B):
+                captured_piece = piece_at(pos_X, pos_Y, B)
+                B[1].remove(captured_piece)
+
+            # temporarily move the piece to see if in check
+            orig_X = self.pos_x
+            orig_Y = self.pos_y
+            self.pos_x = pos_X
+            self.pos_y = pos_Y
+            is_valid = not is_check(self.side, B)
+
+            # reverse move and replace captured piece
+            self.pos_x = orig_X
+            self.pos_y = orig_Y
+            if captured_piece is not None:
+                B[1].append(captured_piece)
+            return is_valid
+        else:
+            return False
+
     def move_to(self, pos_X: int, pos_Y: int, B: Board) -> Board:
         '''
         returns new board resulting from move of this king to coordinates pos_X, pos_Y on board B
@@ -388,15 +526,15 @@ def read_board(filename: str) -> Board:
     >>> from pprint import pprint
     >>> pprint(read_board('board_examp.txt'))
     (5,
-    [Bishop(1, 1, white),
-    Rook(1, 2, white),
-    Bishop(5, 2, white),
-    Rook(1, 5, white),
-    King(3, 5, white),
-    King(2, 3, black),
-    Rook(4, 3, black),
-    Rook(2, 4, black),
-    Rook(5, 4, black)])
+     [Bishop(1, 1, white),
+      Rook(1, 2, white),
+      Bishop(5, 2, white),
+      Rook(1, 5, white),
+      King(3, 5, white),
+      King(2, 3, black),
+      Rook(4, 3, black),
+      Rook(2, 4, black),
+      Rook(5, 4, black)])
     '''
     fullname = FILEPATH + filename
     with open(fullname, 'r') as f:
@@ -405,14 +543,16 @@ def read_board(filename: str) -> Board:
 
 
 def read_board_txt(stream: TextIO) -> Board:
-    '''Reads board configuration from a text IO stream.
+    """Reads board configuration from a text IO stream.
     Raises IOError exception if text does not represent
     a valid board. Example:
     >>> from io import StringIO
-    >>> stream = StringIO('4 \n Kd2 \n Kd4')
+    >>> stream = StringIO('''4
+    ... Kd2
+    ... Kd4''')
     >>> read_board_txt(stream)
     (4, [King(4, 2, white), King(4, 4, black)])
-    '''
+    """
     def tolerant_readline(stream: TextIO) -> str:
         'fault tolerant readline that re-raises IOError upon any exception'
         try:
@@ -476,10 +616,10 @@ def prompt_file() -> Optional[Board]:
     # trick for tab: autocompletion
     readline.parse_and_bind('tab: complete')
     board = None
-    prefix = ''
-    file_prompt = 'File name for initial configuration:\n'
+    err_msg = ''
+    prompt_msg = 'File name for initial configuration:\n'
     while True:
-        user_input = input(prefix + file_prompt)
+        user_input = input(err_msg + prompt_msg)
         if user_input == CMD_QUIT:
             break
         try:
@@ -488,7 +628,7 @@ def prompt_file() -> Optional[Board]:
         except IOError:
             # IOError is alias for OSError
             # and also parent of FileNotFoundError
-            prefix = '\nThis is not a valid file. '
+            err_msg = '\nThis is not a valid file. '
     # end tab completion
     readline.parse_and_bind('tab: ""')
     return board

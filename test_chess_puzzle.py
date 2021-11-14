@@ -1,7 +1,7 @@
 import pytest
 from io import StringIO
 from chess_puzzle import \
-    Bishop, King, Rook, Board, MSG_IOERROR, \
+    Piece, Bishop, King, Rook, Board, MSG_IOERROR, \
     location2index, index2location, is_piece_at, piece_at, \
     is_check, is_checkmate, read_board, conf2unicode, read_board_txt
 
@@ -106,10 +106,10 @@ class TestBoardCreation:
         assert location2index('g12') == (7, 12)
 
     @pytest.mark.parametrize('locations', [
-        'bb',
-        'D3',
-        'ab95',
-        'a-9'
+        'bb',  # don't accept missing row number
+        'D3',  # don't accept capital letter
+        'ab95',  # out of range
+        'a-9'  # negative number not accepted
     ])
     def test_location2index_errors(self, locations: str) -> None:
         with pytest.raises(IOError):
@@ -171,13 +171,25 @@ class TestBoardCreation:
         assert not is_piece_at(4, 3, board)
 
     def test__eq__and__ne__(self) -> None:
+        '''test overloaded == operator because it is
+        important for other tests'''
         white = True
         black = False
-        assert King(2, 3, white) == King(2, 3, white)
+
+        # side / colour is different
         assert King(2, 3, white) != King(2, 3, black)
+
+        # x-coord is different
         assert King(2, 3, white) != King(3, 3, white)
+
+        # y-coord is different
         assert King(2, 3, white) != King(2, 2, white)
+
+        # piece type is different
         assert King(2, 3, white) != Rook(2, 3, white)
+
+        # check that these all match
+        assert King(2, 3, white) == King(2, 3, white)
         assert Rook(4, 2, black) == Rook(4, 2, black)
         assert Bishop(16, 3, black) == Bishop(16, 3, black)
 
@@ -227,6 +239,26 @@ class TestBoardCreation:
 # --------------------------------
 class TestMovePieces:
 
+    def test_rook_can_reach_same_row_or_column(self) -> None:
+        Rc3: Piece = Rook(3, 3, False)
+        board = (5, [Rc3])
+        valid_destinations = [
+            (1, 3),
+            (2, 3),
+            (4, 3),
+            (5, 3),
+            (3, 1),
+            (3, 2),
+            (3, 4),
+            (3, 5)
+        ]
+        for x in range(1, 6):
+            for y in range(1, 6):
+                if (x, y) in valid_destinations:
+                    assert Rc3.can_reach(x, y, board)
+                else:
+                    assert not Rc3.can_reach(x, y, board)
+
     # all of these assume that board reading is correct
     def rook_test_board(self) -> Board:
         '''
@@ -244,18 +276,27 @@ class TestMovePieces:
     def test_rook_can_reach_valid_locs(self) -> None:
         board = self.rook_test_board()
         Rb4 = piece_at(2, 4, board)
+        # left
         assert Rb4.can_reach(1, 4, board)
+        # right
         assert Rb4.can_reach(3, 4, board)
+        # down
         assert Rb4.can_reach(2, 3, board)
+        # down-2
         assert Rb4.can_reach(2, 2, board)
 
     def test_rook_can_reach_isfalse_ifinvalid(self) -> None:
         board = self.rook_test_board()
         Rb4 = piece_at(2, 4, board)
+        # cannot go diagonal
         assert not Rb4.can_reach(3, 3, board)
+        # cannot capture its own colour
         assert not Rb4.can_reach(4, 4, board)
+        # cannot move to itself
         assert not Rb4.can_reach(2, 4, board)
+        # cannot leap over
         assert not Rb4.can_reach(2, 1, board)
+        # not a horizontal or vertical move
         assert not Rb4.can_reach(4, 2, board)
 
     def bishop_test_board(self) -> Board:
@@ -274,19 +315,29 @@ class TestMovePieces:
     def test_bishop_can_reach_valid_locs(self) -> None:
         board = self.bishop_test_board()
         Bc2 = piece_at(3, 2, board)
+        # left-up
         assert Bc2.can_reach(2, 3, board)
+        # can capture other piece
         assert Bc2.can_reach(1, 4, board)
+        # right-up
         assert Bc2.can_reach(4, 3, board)
+        # left-down
         assert Bc2.can_reach(2, 1, board)
 
     def test_bishop_can_reach_isfalse_if_invalid(self) -> None:
         board = self.bishop_test_board()
         Bc2 = piece_at(3, 2, board)
+        # cannot capture its own colour
         assert not Bc2.can_reach(4, 1, board)
+        # not on a diagonal
         assert not Bc2.can_reach(3, 4, board)
+        # not on a diagonal
         assert not Bc2.can_reach(1, 2, board)
+        # not on a diagonal
         assert not Bc2.can_reach(3, 1, board)
+        # not on a diagonal
         assert not Bc2.can_reach(2, 2, board)
+        # cannot move to itself
         assert not Bc2.can_reach(3, 2, board)
 
     def king_test_board(self) -> Board:
@@ -312,15 +363,21 @@ class TestMovePieces:
         assert Kc2.can_reach(4, 2, board)
         assert Kc2.can_reach(2, 1, board)
         assert Kc2.can_reach(3, 1, board)
+        # can capture other piece
         assert Kc2.can_reach(4, 1, board)
 
     def test_king_can_reach_isfalse_if_invalid(self) -> None:
         board = self.king_test_board()
         Kc2 = piece_at(3, 2, board)
+        # cannot capture its own colour
         assert not Kc2.can_reach(2, 3, board)
+        # cannot move to itself
         assert not Kc2.can_reach(3, 2, board)
+        # cannot move more than one square away
         assert not Kc2.can_reach(1, 1, board)
+        # cannot move more than one square away
         assert not Kc2.can_reach(4, 4, board)
+        # cannot move more than one square away
         assert not Kc2.can_reach(2, 4, board)
 
     def test_is_check_white_only(self) -> None:
