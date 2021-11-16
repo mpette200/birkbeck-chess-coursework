@@ -606,8 +606,9 @@ def read_board_txt(stream: TextIO) -> Board:
     return board
 
 
-def save_board(filename: str) -> None:
-    '''saves board configuration into file in current directory in plain format'''
+def save_board(filename: str, B: Board) -> None:
+    '''saves board configuration into file in current directory in plain format
+    '''
 
 
 def find_black_move(B: Board) -> tuple[Piece, int, int]:

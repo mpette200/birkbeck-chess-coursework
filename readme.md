@@ -314,7 +314,7 @@ def read_board(filename: str) -> Board:
     raises IOError exception if file is not valid (see section Plain board configurations)
     '''
 
-def save_board(filename: str) -> None:
+def save_board(filename: str, B: Board) -> None:
     '''saves board configuration into file in current directory in plain format'''
 ```
 To generate Black's moves by the computer player, we need:
