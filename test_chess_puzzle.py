@@ -282,7 +282,7 @@ class TestMovePieces:
         assert Rb4.can_reach(3, 4, board)
         # down
         assert Rb4.can_reach(2, 3, board)
-        # down-2
+        # can capture other piece
         assert Rb4.can_reach(2, 2, board)
 
     def test_rook_can_reach_isfalse_ifinvalid(self) -> None:
@@ -298,6 +298,26 @@ class TestMovePieces:
         assert not Rb4.can_reach(2, 1, board)
         # not a horizontal or vertical move
         assert not Rb4.can_reach(4, 2, board)
+
+    def test_bishop_can_reach_diagonals(self) -> None:
+        Bc3: Piece = Bishop(3, 3, True)
+        board = (5, [Bc3])
+        valid_destinations = [
+            (1, 5),
+            (2, 4),
+            (1, 1),
+            (2, 2),
+            (4, 4),
+            (5, 5),
+            (4, 2),
+            (5, 1)
+        ]
+        for x in range(1, 6):
+            for y in range(1, 6):
+                if (x, y) in valid_destinations:
+                    assert Bc3.can_reach(x, y, board)
+                else:
+                    assert not Bc3.can_reach(x, y, board)
 
     def bishop_test_board(self) -> Board:
         '''
@@ -339,6 +359,26 @@ class TestMovePieces:
         assert not Bc2.can_reach(2, 2, board)
         # cannot move to itself
         assert not Bc2.can_reach(3, 2, board)
+
+    def test_king_can_reach_adjacent(self) -> None:
+        Kc3: Piece = King(3, 3, False)
+        board = (5, [Kc3])
+        valid_destinations = [
+            (2, 4),
+            (3, 4),
+            (4, 4),
+            (2, 3),
+            (4, 3),
+            (2, 2),
+            (3, 2),
+            (4, 2)
+        ]
+        for x in range(1, 6):
+            for y in range(1, 6):
+                if (x, y) in valid_destinations:
+                    assert Kc3.can_reach(x, y, board)
+                else:
+                    assert not Kc3.can_reach(x, y, board)
 
     def king_test_board(self) -> Board:
         '''

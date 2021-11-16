@@ -3,7 +3,7 @@ from typing import TextIO, Optional
 
 # if not blank need to include trailing slash in FILEPATH
 FILEPATH = ''
-MSG_IOERROR = 'is not valid'
+MSG_IOERROR = 'file input/output is not valid'
 CMD_QUIT = 'QUIT'
 
 
@@ -269,11 +269,13 @@ class Rook(Piece):
 
     def move_to(self, pos_X: int, pos_Y: int, B: Board) -> Board:
         '''
-        returns new board resulting from move of this rook to coordinates pos_X, pos_Y on board B
-        assumes this move is valid according to chess rules
-        WARNING: this mutates the original board then returns the same board.
+        returns new board resulting from move of this rook to coordinates
+        pos_X, pos_Y on board B assumes this move is valid according to
+        chess rules
+        WARNING: this mutates the original board and then
+        returns a reference to the mutated board.
         '''
-        # WARNING: this mutates the original board then returns the same board
+        # WARNING: this mutates the original board
         if is_piece_at(pos_X, pos_Y, B):
             captured_piece = piece_at(pos_X, pos_Y, B)
             B[1].remove(captured_piece)
@@ -344,7 +346,8 @@ class Bishop(Piece):
         self.unicode = '\u2657' if side_ else '\u265D'
 
     def can_reach(self, pos_X: int, pos_Y: int, B: Board) -> bool:
-        '''checks if this bishop can move to coordinates pos_X, pos_Y on board B according to rule [Rule1] and [Rule4]'''
+        '''checks if this bishop can move to coordinates pos_X, pos_Y on
+        board B according to rule [Rule1] and [Rule4]'''
         inbounds = Piece.is_inbounds(pos_X, pos_Y, B)
         in_defined_moves = self.in_defined_moves(pos_X, pos_Y)
         if inbounds and in_defined_moves:
@@ -355,7 +358,8 @@ class Bishop(Piece):
             return False
 
     def can_move_to(self, pos_X: int, pos_Y: int, B: Board) -> bool:
-        '''checks if this bishop can move to coordinates pos_X, pos_Y on board B according to all chess rules
+        '''checks if this bishop can move to coordinates pos_X, pos_Y on
+        board B according to all chess rules
         Example:
         >>> from io import StringIO
         >>> b = read_board_txt(StringIO("""4
@@ -393,9 +397,19 @@ class Bishop(Piece):
 
     def move_to(self, pos_X: int, pos_Y: int, B: Board) -> Board:
         '''
-        returns new board resulting from move of this bishop to coordinates pos_X, pos_Y on board B
-        assumes this move is valid according to chess rules
+        returns new board resulting from move of this bishop to coordinates
+        pos_X, pos_Y on board B assumes this move is valid according to
+        chess rules
+        WARNING: this mutates the original board and then
+        returns a reference to the mutated board.
         '''
+        # WARNING: this mutates the original board
+        if is_piece_at(pos_X, pos_Y, B):
+            captured_piece = piece_at(pos_X, pos_Y, B)
+            B[1].remove(captured_piece)
+        self.pos_x = pos_X
+        self.pos_y = pos_Y
+        return B
 
     def in_defined_moves(self, pos_X: int, pos_Y: int) -> bool:
         '''Bishops can only move along diagonals.
@@ -434,7 +448,8 @@ class King(Piece):
         self.unicode = '\u2654' if side_ else '\u265A'
 
     def can_reach(self, pos_X: int, pos_Y: int, B: Board) -> bool:
-        '''checks if this king can move to coordinates pos_X, pos_Y on board B according to rule [Rule3] and [Rule4]'''
+        '''checks if this king can move to coordinates pos_X, pos_Y on
+        board B according to rule [Rule3] and [Rule4]'''
         inbounds = Piece.is_inbounds(pos_X, pos_Y, B)
         in_defined_moves = self.in_defined_moves(pos_X, pos_Y)
         if inbounds and in_defined_moves:
@@ -444,7 +459,8 @@ class King(Piece):
             return False
 
     def can_move_to(self, pos_X: int, pos_Y: int, B: Board) -> bool:
-        '''checks if this king can move to coordinates pos_X, pos_Y on board B according to all chess rules
+        '''checks if this king can move to coordinates pos_X, pos_Y on
+        board B according to all chess rules
         Example:
         >>> from io import StringIO
         >>> b = read_board_txt(StringIO("""4
@@ -482,9 +498,19 @@ class King(Piece):
 
     def move_to(self, pos_X: int, pos_Y: int, B: Board) -> Board:
         '''
-        returns new board resulting from move of this king to coordinates pos_X, pos_Y on board B
-        assumes this move is valid according to chess rules
+        returns new board resulting from move of this king to coordinates
+        pos_X, pos_Y on board B assumes this move is valid according to
+        chess rules
+        WARNING: this mutates the original board and then
+        returns a reference to the mutated board.
         '''
+        # WARNING: this mutates the original board
+        if is_piece_at(pos_X, pos_Y, B):
+            captured_piece = piece_at(pos_X, pos_Y, B)
+            B[1].remove(captured_piece)
+        self.pos_x = pos_X
+        self.pos_y = pos_Y
+        return B
 
     def in_defined_moves(self, pos_X: int, pos_Y: int) -> bool:
         '''King can only move 1 square in any direction.
@@ -520,8 +546,8 @@ def is_checkmate(side: bool, B: Board) -> bool:
 def read_board(filename: str) -> Board:
     '''
     Reads board configuration from file in current directory in plain format.
-    Raises IOError exception if file is not valid (see section Plain board configurations).
-    Raises FileNotFoundError if valid file cannot be located.
+    Raises IOError exception if file is not valid (see section Plain board
+    configurations). Raises FileNotFoundError if valid file cannot be located.
     Example:
     >>> from pprint import pprint
     >>> pprint(read_board('board_examp.txt'))
@@ -586,8 +612,9 @@ def save_board(filename: str) -> None:
 
 def find_black_move(B: Board) -> tuple[Piece, int, int]:
     '''
-    returns (P, x, y) where a Black piece P can move on B to coordinates x,y according to chess rules
-    assumes there is at least one black piece that can move somewhere
+    returns (P, x, y) where a Black piece P can move on B to coordinates x,y
+    according to chess rules assumes there is at least one black piece that
+    can move somewhere
 
     Hints:
     - use methods of random library
@@ -596,7 +623,8 @@ def find_black_move(B: Board) -> tuple[Piece, int, int]:
 
 
 def conf2unicode(B: Board) -> str:
-    '''converts board cofiguration B to unicode format string (see section Unicode board configurations)'''
+    '''converts board cofiguration B to unicode format string
+    (see section Unicode board configurations)'''
     space = '\u2001'
     size, pieces = B
     piece_array = [[space] * size for _ in range(size)]
@@ -637,14 +665,22 @@ def prompt_file() -> Optional[Board]:
 def main() -> None:
     '''
     Runs the play, using a text input prompt
-    1. Ask for 'File name for initial configuration', keeps asking until a valid file provided
-    or user types 'QUIT'
-    2. Loads board from the file and displays initial configuration on the screen
-    3. Ask for 'Next move of White', keeps asking until game over or user types 'QUIT'
+    1. Ask for 'File name for initial configuration', keeps asking until
+    a valid file provided or user types 'QUIT'.
+
+    2. Loads board from the file and displays initial configuration on
+    the screen.
+
+    3. Ask for 'Next move of White', keeps asking until game over or user
+    types 'QUIT'.
+
     4. After white's move update the board and display on the screen.
+
     5. After black's move print message stating 'Next move of Black is ...'
     and display on screen.
+
     6. If user types 'QUIT' prompt for 'File name to store the configuration'
+
     7. After game over, print winner.
     '''
     while True:
