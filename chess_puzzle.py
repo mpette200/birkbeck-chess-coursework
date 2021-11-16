@@ -144,6 +144,12 @@ class Piece:
     def can_reach(self, pos_X: int, pos_Y: int, B: 'Board') -> bool:
         '''Abstract method needs listing here to avoid Mypy warnings.
         '''
+    def can_move_to(self, pos_X: int, pos_Y: int, B: 'Board') -> bool:
+        '''Abstract method needs listing here to avoid Mypy warnings.
+        '''
+    def move_to(self, pos_X: int, pos_Y: int, B: 'Board') -> 'Board':
+        '''Abstract method needs listing here to avoid Mypy warnings.
+        '''
 
     def __eq__(self, P: object) -> bool:
         if not isinstance(P, Piece):
@@ -637,6 +643,73 @@ def conf2unicode(B: Board) -> str:
     return '\n'.join(''.join(s) for s in piece_array)
 
 
+def parse_move(
+        move: str, side: bool, B: Board) -> Optional[tuple[Piece, int, int]]:
+    '''Validates move given as a string in form 'a1b2'. Return value is a
+    tuple comprising: piece, x, y where piece is the piece to move and
+    x and y are the destination coordinates.
+    Returns None if it is not a valid move.
+    '''
+    letters = 'abcdefghijklmnopqrstuvwxyz'
+    move = move.strip()
+    # validate length
+    if len(move) < 4:
+        return None
+
+    # find split point between source and destination
+    i = 1
+    while move[i] not in letters:
+        i += 1
+        if i >= len(move) - 1:
+            return None
+
+    # convert to x, y coordinates
+    try:
+        x0, y0 = location2index(move[:i])
+        x1, y1 = location2index(move[i:])
+    except IOError:
+        return None
+
+    # validate size
+    if not (Piece.is_inbounds(x0, y0, B) and Piece.is_inbounds(x1, y1, B)):
+        return None
+
+    # check if piece exists
+    if not is_piece_at(x0, y0, B):
+        return None
+    piece = piece_at(x0, y0, B)
+
+    # check if right colour
+    if piece.side != side:
+        return None
+
+    # check if can move to destination
+    if not piece.can_move_to(x1, y1, B):
+        return None
+    return piece, x1, y1
+
+
+def prompt_move(side: bool, B: Board) -> Optional[tuple[Piece, int, int]]:
+    '''Prompts user for move, keeps asking until a valid move is given
+    or the user typed 'QUIT'.
+    Return value is a tuple comprising: piece, x, y where piece is the piece
+    to move and x and y are the destination coordinates.
+    Returns None if user typed 'QUIT'
+    '''
+    err_msg = ''
+    color = 'White' if side else 'Black'
+    prompt_msg = f'Next move of {color}:\n'
+    while True:
+        user_input = input(err_msg + prompt_msg)
+        if user_input == CMD_QUIT:
+            return None
+        move_info = parse_move(user_input, side, B)
+        if move_info is not None:
+            break
+        err_msg = '\nThis is not a valid move. '
+    return move_info
+
+
 def prompt_file() -> Optional[Board]:
     '''Prompts user for file, keeps asking until a valid file provided
     or the user typed 'QUIT'. Returns the board populated with pieces
@@ -646,7 +719,7 @@ def prompt_file() -> Optional[Board]:
     readline.parse_and_bind('tab: complete')
     board = None
     err_msg = ''
-    prompt_msg = 'File name for initial configuration:\n'
+    prompt_msg = '\nFile name for initial configuration:\n'
     while True:
         user_input = input(err_msg + prompt_msg)
         if user_input == CMD_QUIT:
@@ -685,11 +758,23 @@ def main() -> None:
     7. After game over, print winner.
     '''
     while True:
+        # load the board
         board = prompt_file()
         if board is None:
             return
         print('\nThe initial configuration is:')
         print(conf2unicode(board) + '\n')
+
+        # make moves
+        cur_side = True  # white
+        while True:
+            move_info = prompt_move(cur_side, board)
+            if move_info is None:
+                break
+            piece, x, y = move_info
+            piece.move_to(x, y, board)
+            print(conf2unicode(board) + '\n')
+            cur_side = not cur_side
 
 
 if __name__ == '__main__':  # keep this in
