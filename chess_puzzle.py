@@ -547,6 +547,33 @@ def is_checkmate(side: bool, B: Board) -> bool:
     - use is_check
     - use can_reach
     '''
+    return is_check(side, B) and len(get_all_moves(side, B)) == 0
+
+
+def get_all_moves(side: bool, B: Board) -> list[tuple[Piece, int, int]]:
+    '''Fetches all possible moves for the side
+    Returns a list of tuples each containing the piece and its destination
+    x-coord and y-coord.
+    Example:
+    >>> b = (4, [King(2, 1, True), King(2, 3, False), Rook(4, 1, True)])
+    >>> for piece, x, y in get_all_moves(True, b):
+    ...     print(f'{piece} -> ({x}, {y})')
+    ...
+    King(2, 1, white) -> (1, 1)
+    King(2, 1, white) -> (3, 1)
+    Rook(4, 1, white) -> (3, 1)
+    Rook(4, 1, white) -> (4, 2)
+    Rook(4, 1, white) -> (4, 3)
+    Rook(4, 1, white) -> (4, 4)
+    '''
+    size = B[0]
+    moves = []
+    for piece in filter(lambda x: x.side == side, B[1]):
+        for x in range(1, size + 1):
+            for y in range(1, size + 1):
+                if piece.can_move_to(x, y, B):
+                    moves.append((piece, x, y))
+    return moves
 
 
 def read_board(filename: str) -> Board:
