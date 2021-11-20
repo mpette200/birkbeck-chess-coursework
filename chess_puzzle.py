@@ -1,3 +1,5 @@
+import argparse
+import random
 import readline
 from typing import TextIO, Optional
 
@@ -5,6 +7,9 @@ from typing import TextIO, Optional
 FILEPATH = ''
 MSG_IOERROR = 'file input/output is not valid'
 CMD_QUIT = 'QUIT'
+# flag for testing that can be set to false so that
+# user has to input both black moves and white moves
+PLAY_AGAINST_COMPUTER = True
 
 
 def location2index(loc: str) -> tuple[int, int]:
@@ -43,6 +48,7 @@ class Piece:
     pos_y: int
     side: bool  # True for White and False for Black
     unicode: str
+    letter: str
 
     def __init__(self, pos_X: int, pos_Y: int, side_: bool):
         '''sets initial values'''
@@ -72,7 +78,12 @@ class Piece:
         count_kings = 0
         size, pieces = B
 
-        for piece_info in csv.split(','):
+        csvdata = csv.split(',')
+        # check for trailing comma at end
+        if csvdata[-1].strip() == '':
+            csvdata = csvdata[:-1]
+
+        for piece_info in csvdata:
             piece_info = piece_info.strip()
             if len(piece_info) < 3:
                 raise IOError(f'\'{csv}\' {MSG_IOERROR}')
@@ -153,7 +164,7 @@ class Piece:
 
     def __eq__(self, P: object) -> bool:
         if not isinstance(P, Piece):
-            raise NotImplementedError()
+            return NotImplemented
         return self.pos_x == P.pos_x \
             and self.pos_y == P.pos_y \
             and self.side == P.side \
@@ -210,6 +221,7 @@ class Rook(Piece):
         '''sets initial values by calling the constructor of Piece'''
         super().__init__(pos_X, pos_Y, side_)
         self.unicode = '\u2656' if side_ else '\u265C'
+        self.letter = 'R'
 
     def can_reach(self, pos_X: int, pos_Y: int, B: Board) -> bool:
         '''
@@ -255,7 +267,8 @@ class Rook(Piece):
         if self.can_reach(pos_X, pos_Y, B):
             if is_piece_at(pos_X, pos_Y, B):
                 captured_piece = piece_at(pos_X, pos_Y, B)
-                B[1].remove(captured_piece)
+                idx_captured = B[1].index(captured_piece)
+                B[1].pop(idx_captured)
 
             # temporarily move the piece to see if in check
             orig_X = self.pos_x
@@ -268,7 +281,7 @@ class Rook(Piece):
             self.pos_x = orig_X
             self.pos_y = orig_Y
             if captured_piece is not None:
-                B[1].append(captured_piece)
+                B[1].insert(idx_captured, captured_piece)
             return is_valid
         else:
             return False
@@ -350,6 +363,7 @@ class Bishop(Piece):
         '''sets initial values by calling the constructor of Piece'''
         super().__init__(pos_X, pos_Y, side_)
         self.unicode = '\u2657' if side_ else '\u265D'
+        self.letter = 'B'
 
     def can_reach(self, pos_X: int, pos_Y: int, B: Board) -> bool:
         '''checks if this bishop can move to coordinates pos_X, pos_Y on
@@ -383,7 +397,8 @@ class Bishop(Piece):
         if self.can_reach(pos_X, pos_Y, B):
             if is_piece_at(pos_X, pos_Y, B):
                 captured_piece = piece_at(pos_X, pos_Y, B)
-                B[1].remove(captured_piece)
+                idx_captured = B[1].index(captured_piece)
+                B[1].pop(idx_captured)
 
             # temporarily move the piece to see if in check
             orig_X = self.pos_x
@@ -396,7 +411,7 @@ class Bishop(Piece):
             self.pos_x = orig_X
             self.pos_y = orig_Y
             if captured_piece is not None:
-                B[1].append(captured_piece)
+                B[1].insert(idx_captured, captured_piece)
             return is_valid
         else:
             return False
@@ -452,6 +467,7 @@ class King(Piece):
         '''sets initial values by calling the constructor of Piece'''
         super().__init__(pos_X, pos_Y, side_)
         self.unicode = '\u2654' if side_ else '\u265A'
+        self.letter = 'K'
 
     def can_reach(self, pos_X: int, pos_Y: int, B: Board) -> bool:
         '''checks if this king can move to coordinates pos_X, pos_Y on
@@ -484,7 +500,8 @@ class King(Piece):
         if self.can_reach(pos_X, pos_Y, B):
             if is_piece_at(pos_X, pos_Y, B):
                 captured_piece = piece_at(pos_X, pos_Y, B)
-                B[1].remove(captured_piece)
+                idx_captured = B[1].index(captured_piece)
+                B[1].pop(idx_captured)
 
             # temporarily move the piece to see if in check
             orig_X = self.pos_x
@@ -497,7 +514,7 @@ class King(Piece):
             self.pos_x = orig_X
             self.pos_y = orig_Y
             if captured_piece is not None:
-                B[1].append(captured_piece)
+                B[1].insert(idx_captured, captured_piece)
             return is_valid
         else:
             return False
@@ -642,6 +659,19 @@ def read_board_txt(stream: TextIO) -> Board:
 def save_board(filename: str, B: Board) -> None:
     '''saves board configuration into file in current directory in plain format
     '''
+    size = B[0]
+    lines = [f'{size}\n', '', '']
+    for piece in B[1]:
+        txt = f'{piece.letter}{index2location(piece.pos_x, piece.pos_y)}, '
+        line_num = 1 if piece.side else 2
+        lines[line_num] += txt
+
+    # remove trailing comma at end
+    lines[1] = lines[1][:-2] + '\n'
+    lines[2] = lines[2][:-2] + '\n'
+    fullname = FILEPATH + filename
+    with open(fullname, 'x') as f:
+        f.writelines(lines)
 
 
 def find_black_move(B: Board) -> tuple[Piece, int, int]:
@@ -654,6 +684,8 @@ def find_black_move(B: Board) -> tuple[Piece, int, int]:
     - use methods of random library
     - use can_move_to
     '''
+    all_moves = get_all_moves(False, B)
+    return random.choice(all_moves)
 
 
 def conf2unicode(B: Board) -> str:
@@ -716,6 +748,16 @@ def parse_move(
     return piece, x1, y1
 
 
+def move_to_txt(move: tuple[Piece, int, int]) -> str:
+    '''Converts a move tuple to a text representation of the move.
+    Returns a string of the form 'a2b3'
+    '''
+    piece, x, y = move
+    source = index2location(piece.pos_x, piece.pos_y)
+    dest = index2location(x, y)
+    return source + dest
+
+
 def prompt_move(side: bool, B: Board) -> Optional[tuple[Piece, int, int]]:
     '''Prompts user for move, keeps asking until a valid move is given
     or the user typed 'QUIT'.
@@ -735,6 +777,22 @@ def prompt_move(side: bool, B: Board) -> Optional[tuple[Piece, int, int]]:
             break
         err_msg = '\nThis is not a valid move. '
     return move_info
+
+
+def prompt_save(B: Board) -> None:
+    '''Prompts user for filename to save, keeps asking until a
+    valid filename is given.
+    '''
+    err_msg = ''
+    prompt_msg = '\nFile name to store the configuration:\n'
+    while True:
+        filename = input(err_msg + prompt_msg)
+        try:
+            save_board(filename, B)
+            break
+        except OSError:
+            # OSError is parent of FileNotFoundError
+            err_msg = '\nNot a valid filename. '
 
 
 def prompt_file() -> Optional[Board]:
@@ -783,26 +841,54 @@ def main() -> None:
     6. If user types 'QUIT' prompt for 'File name to store the configuration'
 
     7. After game over, print winner.
+
+    If the global constant PLAY_AGAINST_COMPUTER is set to false, the user
+    will be asked for both white moves and black moves. Useful for testing.
     '''
+    # load the board
+    board = prompt_file()
+    if board is None:
+        # user typed 'QUIT'
+        return
+    print('\nThe initial configuration is:')
+    print(conf2unicode(board) + '\n')
+
+    # make moves
+    name = {True: 'White', False: 'Black'}
+    cur_side = True
     while True:
-        # load the board
-        board = prompt_file()
-        if board is None:
+        if is_checkmate(cur_side, board):
+            break
+        move_info = prompt_move(cur_side, board)
+        if move_info is None:
+            # user typed 'QUIT'
+            prompt_save(board)
+            print('The game configuration saved.')
             return
-        print('\nThe initial configuration is:')
+        piece, x, y = move_info
+        board = piece.move_to(x, y, board)
+        print(f"The configuration after {name[cur_side]}'s move is:")
         print(conf2unicode(board) + '\n')
 
-        # make moves
-        cur_side = True  # white
-        while True:
-            move_info = prompt_move(cur_side, board)
-            if move_info is None:
+        # change sides and play next move
+        cur_side = not cur_side
+        if PLAY_AGAINST_COMPUTER:
+            if is_checkmate(cur_side, board):
                 break
-            piece, x, y = move_info
-            piece.move_to(x, y, board)
+            piece, x, y = find_black_move(board)
+            mov_txt = move_to_txt((piece, x, y))
+            board = piece.move_to(x, y, board)
+            print(f"Next move of Black is {mov_txt}. The configuration "
+                  + "after Black's move is:")
             print(conf2unicode(board) + '\n')
             cur_side = not cur_side
+    cur_side = not cur_side
+    print(f'Game over. {name[cur_side]} wins.')
 
 
 if __name__ == '__main__':  # keep this in
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--playself', action='store_true',
+                        help='Play against yourself')
+    PLAY_AGAINST_COMPUTER = not parser.parse_args().playself
     main()
