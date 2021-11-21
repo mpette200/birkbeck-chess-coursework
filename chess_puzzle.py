@@ -306,23 +306,6 @@ class Rook(Piece):
         '''Rooks can only move along a row or a column.
         Returns true if the move is along a row or column.
         Checking for zero move is done elsewhere.
-        Example:
-        >>> Rc3 = Rook(3, 3, True)
-        >>> b = (5, [Rc3])
-        >>> for x in range(1, 6):
-        ...     for y in range(1, 6):
-        ...         if Rc3.in_defined_moves(x, y):
-        ...             print(f'{x}, {y} is in defined moves')
-        ...
-        1, 3 is in defined moves
-        2, 3 is in defined moves
-        3, 1 is in defined moves
-        3, 2 is in defined moves
-        3, 3 is in defined moves
-        3, 4 is in defined moves
-        3, 5 is in defined moves
-        4, 3 is in defined moves
-        5, 3 is in defined moves
         '''
         is_same_row = self.pos_y == pos_Y
         is_same_column = self.pos_x == pos_X
@@ -445,20 +428,34 @@ class Bishop(Piece):
         Checks whether piece needs to leap over another piece
         to reach destination. Assumes destination is a valid move for
         the piece. Does not include the start square or finish square.
+        Example:
+        >>> b = read_board('board_small_valid.txt')
+        >>> Ba2 = piece_at(1, 2, b)
+        >>> Ba2.is_leap_over(2, 3, b)
+        False
+        >>> Ba2.is_leap_over(3, 4, b)
+        True
         '''
-        # important 1 + ...
-        start_x = 1 + min(self.pos_x, pos_X)
-        stop_x = max(self.pos_x, pos_X)
-        x_range = range(start_x, stop_x)
+        # important 1 + or - ...
+        if self.pos_x <= pos_X:
+            start_x = self.pos_x + 1
+            step = 1
+        else:
+            start_x = self.pos_x - 1
+            step = -1
+        x_range = range(start_x, pos_X, step)
 
-        # important 1 + ...
-        start_y = 1 + min(self.pos_y, pos_Y)
-        stop_y = max(self.pos_y, pos_Y)
-        y_range = range(start_y, stop_y)
+        # important 1 + or - ...
+        if self.pos_y <= pos_Y:
+            start_y = self.pos_y + 1
+            step = 1
+        else:
+            start_y = self.pos_y - 1
+            step = -1
+        y_range = range(start_y, pos_Y, step)
 
         path = ((x, y) for x, y in zip(x_range, y_range))
         # path does not include final destination or starting square
-        # path may also be in reverse order
         return any(is_piece_at(x, y, B) for x, y in path)
 
 
@@ -716,6 +713,8 @@ def parse_move(
         return None
 
     # find split point between source and destination
+    # eg. move = 'a1b2'
+    #  move[2] = 'b' hence i=2 is the split point
     i = 1
     while move[i] not in letters:
         i += 1

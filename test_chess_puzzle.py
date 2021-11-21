@@ -237,11 +237,70 @@ class TestBoardCreation:
         with pytest.raises(FileNotFoundError):
             read_board('NO__SUCH__FILE')
 
+    def test_conf2unicode_diff_piece_types(self) -> None:
+        white_Rb2: Piece = Rook(2, 2, True)
+        white_Kb2: Piece = King(2, 2, True)
+        white_Bb2: Piece = Bishop(2, 2, True)
+
+        black_Rb2: Piece = Rook(2, 2, False)
+        black_Kb2: Piece = King(2, 2, False)
+        black_Bb2: Piece = Bishop(2, 2, False)
+
+        # white pieces
+        b = (3, [white_Rb2])
+        assert conf2unicode(b) == '   \n ♖ \n   '
+        b = (3, [white_Kb2])
+        assert conf2unicode(b) == '   \n ♔ \n   '
+        b = (3, [white_Bb2])
+        assert conf2unicode(b) == '   \n ♗ \n   '
+
+        # black pieces
+        b = (3, [black_Rb2])
+        assert conf2unicode(b) == '   \n ♜ \n   '
+        b = (3, [black_Kb2])
+        assert conf2unicode(b) == '   \n ♚ \n   '
+        b = (3, [black_Bb2])
+        assert conf2unicode(b) == '   \n ♝ \n   '
+
+    def test_conf2unicode_diff_locations(self) -> None:
+        Ka1: Piece = King(1, 1, True)
+        Ka3: Piece = King(1, 3, True)
+        Kc1: Piece = King(3, 1, True)
+        Kc3: Piece = King(3, 3, True)
+        Kb1: Piece = King(2, 1, True)
+
+        b = (3, [Ka1])
+        assert conf2unicode(b) == '   \n   \n♔  '
+        b = (3, [Ka3])
+        assert conf2unicode(b) == '♔  \n   \n   '
+        b = (3, [Kc1])
+        assert conf2unicode(b) == '   \n   \n  ♔'
+        b = (3, [Kc3])
+        assert conf2unicode(b) == '  ♔\n   \n   '
+        b = (3, [Kb1])
+        assert conf2unicode(b) == '   \n   \n ♔ '
+
 
 # --------------------------------
 # Test moving of pieces
 # --------------------------------
 class TestMovePieces:
+
+    def duplicate_board(self, board: Board) -> Board:
+        'makes deep copy of board for testing'
+        size = board[0]
+        new_board: Board = (size, [])
+        for piece in board[1]:
+            x = piece.pos_x
+            y = piece.pos_y
+            side = piece.side
+            if type(piece) is King:
+                new_board[1].append(King(x, y, side))
+            elif type(piece) is Rook:
+                new_board[1].append(Rook(x, y, side))
+            elif type(piece) is Bishop:
+                new_board[1].append(Bishop(x, y, side))
+        return new_board
 
     def test_rook_can_reach_same_row_or_column(self) -> None:
         Rc3: Piece = Rook(3, 3, False)
@@ -303,6 +362,51 @@ class TestMovePieces:
         # not a horizontal or vertical move
         assert not Rb4.can_reach(4, 2, board)
 
+    def test_rook_can_move_to_leap_over(self) -> None:
+        '''
+        ♚      
+           ♝   
+               
+         ♝ ♜ ♝ 
+               
+           ♝   
+        ♔      
+        '''
+        b = read_board_txt(StringIO(
+            '''7
+            Ka1
+            Ka7, Rd4, Bb4, Bd6, Bf4, Bd2'''
+        ))
+        Rd4 = piece_at(4, 4, b)
+        valid_destinations = [
+            (3, 4),
+            (4, 5),
+            (5, 4),
+            (4, 3)
+        ]
+        for x in range(1, 8):
+            for y in range(1, 8):
+                if (x, y) in valid_destinations:
+                    assert Rd4.can_move_to(x, y, b)
+                else:
+                    assert not Rd4.can_move_to(x, y, b)
+
+    def test_rook_can_move_to_out_of_check(self) -> None:
+        board = self.rook_test_board()
+        copy_board = self.duplicate_board(board)
+        # king is in check so only valid move
+        # is rook takes bishop b2
+        Rb4 = piece_at(2, 4, board)
+        only_valid_move = (2, 2)
+        for x in range(1, 5):
+            for y in range(1, 5):
+                if (x, y) == only_valid_move:
+                    assert Rb4.can_move_to(x, y, board)
+                else:
+                    assert not Rb4.can_move_to(x, y, board)
+        # check that original board is not modified
+        assert board == copy_board
+
     def test_bishop_can_reach_diagonals(self) -> None:
         Bc3: Piece = Bishop(3, 3, True)
         board = (5, [Bc3])
@@ -325,44 +429,85 @@ class TestMovePieces:
 
     def bishop_test_board(self) -> Board:
         '''
-        ♖  ♚
-            
+         ♚  
+         ♖  
           ♝♔
-           ♜
+         ♜  
         '''
         layout = StringIO(
             '''4
-            Kd2, Ra4
-            Bc2, Kd4, Rd1''')
+            Kd2, Rb3
+            Bc2, Kb4, Rb1''')
         return read_board_txt(layout)
 
     def test_bishop_can_reach_valid_locs(self) -> None:
         board = self.bishop_test_board()
         Bc2 = piece_at(3, 2, board)
-        # left-up
-        assert Bc2.can_reach(2, 3, board)
         # can capture other piece
-        assert Bc2.can_reach(1, 4, board)
+        assert Bc2.can_reach(2, 3, board)
         # right-up
         assert Bc2.can_reach(4, 3, board)
-        # left-down
-        assert Bc2.can_reach(2, 1, board)
+        # right-down
+        assert Bc2.can_reach(4, 1, board)
 
     def test_bishop_can_reach_isfalse_if_invalid(self) -> None:
         board = self.bishop_test_board()
         Bc2 = piece_at(3, 2, board)
         # cannot capture its own colour
-        assert not Bc2.can_reach(4, 1, board)
+        assert not Bc2.can_reach(2, 1, board)
+        # cannot leap over
+        assert not Bc2.can_reach(1, 4, board)
+        # cannot move to itself
+        assert not Bc2.can_reach(3, 2, board)
         # not on a diagonal
         assert not Bc2.can_reach(3, 4, board)
         # not on a diagonal
         assert not Bc2.can_reach(1, 2, board)
-        # not on a diagonal
-        assert not Bc2.can_reach(3, 1, board)
-        # not on a diagonal
-        assert not Bc2.can_reach(2, 2, board)
-        # cannot move to itself
-        assert not Bc2.can_reach(3, 2, board)
+
+    def test_bishop_can_move_to_leap_over(self) -> None:
+        '''
+           ♔   
+         ♖   ♖ 
+               
+           ♗   
+               
+         ♖   ♖ 
+           ♚   
+        '''
+        b = read_board_txt(StringIO(
+            '''7
+            Kd7, Bd4, Rb2, Rf6, Rb6, Rf2
+            Kd1'''
+        ))
+        Bd4 = piece_at(4, 4, b)
+        valid_destinations = [
+            (3, 5),
+            (5, 5),
+            (3, 3),
+            (5, 3)
+        ]
+        for x in range(1, 8):
+            for y in range(1, 8):
+                if (x, y) in valid_destinations:
+                    assert Bd4.can_move_to(x, y, b)
+                else:
+                    assert not Bd4.can_move_to(x, y, b)
+
+    def test_bishop_can_move_to_out_of_check(self) -> None:
+        board = self.bishop_test_board()
+        copy_board = self.duplicate_board(board)
+        # king is in check so only valid move
+        # is bishop takes rook b3
+        Bc2 = piece_at(3, 2, board)
+        only_valid_move = (2, 3)
+        for x in range(1, 5):
+            for y in range(1, 5):
+                if (x, y) == only_valid_move:
+                    assert Bc2.can_move_to(x, y, board)
+                else:
+                    assert not Bc2.can_move_to(x, y, board)
+        # check that original board is not modified
+        assert board == copy_board
 
     def test_king_can_reach_adjacent(self) -> None:
         Kc3: Piece = King(3, 3, False)
@@ -401,11 +546,17 @@ class TestMovePieces:
     def test_king_can_reach_valid_locs(self) -> None:
         board = self.king_test_board()
         Kc2 = piece_at(3, 2, board)
+        # up
         assert Kc2.can_reach(3, 3, board)
+        # right-up
         assert Kc2.can_reach(4, 3, board)
+        # left
         assert Kc2.can_reach(2, 2, board)
+        # right
         assert Kc2.can_reach(4, 2, board)
+        # left-down
         assert Kc2.can_reach(2, 1, board)
+        # down
         assert Kc2.can_reach(3, 1, board)
         # can capture other piece
         assert Kc2.can_reach(4, 1, board)
@@ -423,6 +574,25 @@ class TestMovePieces:
         assert not Kc2.can_reach(4, 4, board)
         # cannot move more than one square away
         assert not Kc2.can_reach(2, 4, board)
+
+    def test_king_can_move_to(self) -> None:
+        board = self.king_test_board()
+        copy_board = self.duplicate_board(board)
+        # king can only move to 2 squares
+        # without putting itself in check
+        Kc2 = piece_at(3, 2, board)
+        valid_moves = [
+            (2, 2),
+            (4, 1)
+        ]
+        for x in range(1, 5):
+            for y in range(1, 5):
+                if (x, y) in valid_moves:
+                    assert Kc2.can_move_to(x, y, board)
+                else:
+                    assert not Kc2.can_move_to(x, y, board)
+        # check that original board is not modified
+        assert board == copy_board
 
     def test_is_check_white_only(self) -> None:
         '''
@@ -454,7 +624,7 @@ class TestMovePieces:
         assert not is_check(True, b)
         assert not is_check(False, b)
 
-    def test_is_check_both_sides(self) -> None:
+    def test_is_check_by_king(self) -> None:
         '''
             
         ♜ ♖♔
@@ -468,3 +638,103 @@ class TestMovePieces:
         ))
         assert is_check(True, b)
         assert is_check(False, b)
+
+    def test_is_check_by_rook(self) -> None:
+        '''
+            
+           ♔
+            
+          ♖♚
+        '''
+        b = read_board_txt(StringIO(
+            '''4
+            Kd3, Rc1
+            Kd1'''
+        ))
+        assert not is_check(True, b)
+        assert is_check(False, b)
+
+    def test_is_check_by_bishop(self) -> None:
+        '''
+            
+         ♗ ♔
+            
+           ♚
+        '''
+        b = read_board_txt(StringIO(
+            '''4
+            Kd3, Bb3
+            Kd1'''
+        ))
+        assert not is_check(True, b)
+        assert is_check(False, b)
+
+    def test_is_checkmate_false_king_can_move(self) -> None:
+        '''
+          ♗ 
+          ♚ 
+        ♔♜  
+        ♖   
+        '''
+        b = read_board_txt(StringIO(
+            '''4
+            Ka2, Bc4, Ra1
+            Kc3, Rb2'''
+        ))
+        assert not is_checkmate(True, b)
+
+    def test_is_checkmate_false_king_can_capture(self) -> None:
+        '''
+        ♚ ♗ 
+            
+        ♔♜  
+        ♖   
+        '''
+        b = read_board_txt(StringIO(
+            '''4
+            Ka2, Bc4, Ra1
+            Ka4, Rb2'''
+        ))
+        assert not is_checkmate(True, b)
+
+    def test_is_checkmate_false_bishop_can_capture(self) -> None:
+        '''
+        ♜   
+          ♚ 
+        ♔   
+        ♖♖ ♗
+        '''
+        b = read_board_txt(StringIO(
+            '''4
+            Ka2, Bd1, Ra1, Rb1
+            Kc3, Ra4'''
+        ))
+        assert not is_checkmate(True, b)
+
+    def test_is_checkmate_true_king_rook(self) -> None:
+        '''
+        ♜   
+          ♚ 
+        ♔   
+        ♖♖  
+        '''
+        b = read_board_txt(StringIO(
+            '''4
+            Ka2, Ra1, Rb1
+            Kc3, Ra4'''
+        ))
+        assert is_checkmate(True, b)
+
+    def test_is_checkmate_true_three_bishops(self) -> None:
+        '''
+           ♚
+        ♔   
+        ♗   
+        ♗♗  
+        '''
+        b = read_board_txt(StringIO(
+            '''4
+            Ka3, Ba1, Ba2, Bb1
+            Kd4'''
+        ))
+        assert is_checkmate(False, b)
