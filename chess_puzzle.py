@@ -820,6 +820,22 @@ def prompt_file() -> Optional[Board]:
     return board
 
 
+def check_for_termination(cur_side: bool, B: Board) -> bool:
+    '''Checks whether game has finished or not.
+    Returns true if side is either in checkmate or has not moves.
+    Also prints an appropriate message to console.
+    '''
+    name = {True: 'White', False: 'Black'}
+    if is_checkmate(cur_side, B):
+        cur_side = not cur_side
+        print(f'Game over. {name[cur_side]} wins.')
+        return True
+    elif len(get_all_moves(cur_side, B)) == 0:
+        print(f'{name[cur_side]} has no moves. Game over.')
+        return True
+    return False
+
+
 def main() -> None:
     '''
     Runs the play, using a text input prompt
@@ -852,12 +868,13 @@ def main() -> None:
     print('\nThe initial configuration is:')
     print(conf2unicode(board) + '\n')
 
-    # make moves
     name = {True: 'White', False: 'Black'}
     cur_side = True
     while True:
-        if is_checkmate(cur_side, board):
-            break
+        if check_for_termination(cur_side, board):
+            return
+
+        # user makes move
         move_info = prompt_move(cur_side, board)
         if move_info is None:
             # user typed 'QUIT'
@@ -866,23 +883,27 @@ def main() -> None:
             return
         piece, x, y = move_info
         board = piece.move_to(x, y, board)
+
+        # display board
         print(f"The configuration after {name[cur_side]}'s move is:")
         print(conf2unicode(board) + '\n')
 
         # change sides and play next move
         cur_side = not cur_side
         if PLAY_AGAINST_COMPUTER:
-            if is_checkmate(cur_side, board):
-                break
+            if check_for_termination(cur_side, board):
+                return
+
+            # computer makes move
             piece, x, y = find_black_move(board)
             mov_txt = move_to_txt((piece, x, y))
             board = piece.move_to(x, y, board)
+
+            # display board
             print(f"Next move of Black is {mov_txt}. The configuration "
                   + "after Black's move is:")
             print(conf2unicode(board) + '\n')
             cur_side = not cur_side
-    cur_side = not cur_side
-    print(f'Game over. {name[cur_side]} wins.')
 
 
 if __name__ == '__main__':  # keep this in
