@@ -10,6 +10,8 @@ CMD_QUIT = 'QUIT'
 # flag for testing that can be set to false so that
 # user has to input both black moves and white moves
 PLAY_AGAINST_COMPUTER = True
+# seed can be set for test reproducibility
+RANDOM_SEED: Optional[int] = None
 
 
 def location2index(loc: str) -> tuple[int, int]:
@@ -860,6 +862,9 @@ def main() -> None:
     If the global constant PLAY_AGAINST_COMPUTER is set to false, the user
     will be asked for both white moves and black moves. Useful for testing.
     '''
+    if RANDOM_SEED is not None:
+        random.seed(RANDOM_SEED)
+
     # load the board
     board = prompt_file()
     if board is None:

@@ -1,54 +1,96 @@
 import random
-from io import StringIO
-from multiprocessing import Process
-from chess_puzzle import \
-    read_board_txt, is_checkmate, get_all_moves
+import chess_puzzle
+import queue
+from multiprocessing import Process, Queue, Lock
+from chess_puzzle import index2location
 
 
-def do_test() -> None:
-    '''Computer repeatedly makes random moves for both white and black
-    until game ends.
-    '''
-    random.seed(1231)
-    # advantage_board = '''12
-    # Kj1, Ra1, Rb1, Rc1, Rd1, Re1, Rf1, Ra3, Rb3, Rc3, Rd3, Re3, Rf3''' + \
-    # ''', Bg3, Bh3, Bi3, Bj3, Bk3, Bl3, Bg5, Bh5, Bi5, Bj5, Bk5, Bl5
-    # Kj12, Ra12, Rb12, Rc12, Bh10, Bi10, Bj10, Bk10'''
+class PatchIO:
+    def __init__(self, board_filename: str, board_size: int,
+                 seed: int, out_limit: int) -> None:
+        'Patcher to supply inputs, get outputs from program'
+        self.board_filename = board_filename
+        self.board_size = board_size
+        self.outputs: Queue = Queue(out_limit)
+        self.out_limit = out_limit
+        self.lock = Lock()
+        self.i = 0
+        random.seed(seed)
 
-    fair_board = '''12
-        Kj1, Ra1, Rb1, Rc1, Bh3, Bi3, Bj3, Bk3
-        Kj12, Ra12, Rb12, Rc12, Bh10, Bi10, Bj10, Bk10'''
-    b = read_board_txt(StringIO(fair_board))
-    cur_side = True
-    iter_limit = 100_000
-    i = 0
-    while i < iter_limit:
-        i += 1
-        # check for termination
-        if is_checkmate(cur_side, b) or get_all_moves(cur_side, b) == []:
-            break
+    def input(self, msg: str) -> str:
+        if self.i == 0:
+            self.i += 1
+            out = self.board_filename
+        else:
+            x1 = random.randint(1, self.board_size)
+            y1 = random.randint(1, self.board_size)
+            x2 = random.randint(1, self.board_size)
+            y2 = random.randint(1, self.board_size)
+            source = index2location(x1, y1)
+            dest = index2location(x2, y2)
+            out = source + dest
+        self.print(msg)
+        self.print(out)
+        return out
 
-        # make move
-        piece, x, y = random.choice(get_all_moves(cur_side, b))
-        piece.move_to(x, y, b)
-        cur_side = not cur_side
-    print('End of game')
+    def print(self, msg: str) -> None:
+        with self.lock:
+            while True:
+                try:
+                    self.outputs.put_nowait(msg)
+                    break
+                except queue.Full:
+                    try:
+                        self.outputs.get_nowait()
+                    except queue.Empty:
+                        pass
+
+    def get_outputs(self) -> str:
+        out: list[str] = []
+        with self.lock:
+            while len(out) < self.out_limit:
+                try:
+                    out.append(self.outputs.get_nowait())
+                except queue.Empty:
+                    pass
+            return '\n'.join(out)
 
 
-if __name__ == '__main__':
-    p = Process(target=do_test)
+def run_process_patch_inputs(board_filename: str,
+                             size: int, seed: int) -> None:
+    patch = PatchIO(board_filename, size, seed, 10)
+    chess_puzzle.input = patch.input
+    chess_puzzle.print = patch.print
+    p = Process(target=chess_puzzle.main)
     p.start()
-    print('Running game: ', end='', flush=True)
+    print('Running ' + board_filename + ': ', end='', flush=True)
     t = 0
-    while p.exitcode is None and t < 10:
+    while p.exitcode is None and t < 5:
         # print a dot for each second elapsed
         p.join(1)
         print('.', end='', flush=True)
         t += 1
+    print()
+    print(patch.get_outputs(), flush=True)
     if p.exitcode is not None:
-        print('\nGame ended normally')
+        print('\nGame ended')
     else:
         print('\nGame still not finished, terminating')
         p.terminate()
         p.join()
     p.close()
+
+
+if __name__ == '__main__':
+    seed = 228
+    chess_puzzle.RANDOM_SEED = seed
+    run_process_patch_inputs('board_large_fair.txt', 12, seed)
+    run_process_patch_inputs('board_large_white_adv.txt', 12, seed)
+    for _ in range(5):
+        seed += 1
+        chess_puzzle.RANDOM_SEED = seed
+        run_process_patch_inputs('board_examp.txt', 5, seed)
+    for _ in range(5):
+        seed += 1
+        chess_puzzle.RANDOM_SEED = seed
+        run_process_patch_inputs('board_small_valid.txt', 4, seed)

@@ -1,0 +1,3 @@
+12
+Kj1, Ra1, Rb1, Rc1, Rd1, Re1, Rf1, Ra3, Rb3, Rc3, Rd3, Re3, Rf3, Bg3, Bh3, Bi3, Bj3, Bk3, Bl3, Bg5, Bh5, Bi5, Bj5, Bk5, Bl5
+Kj12, Ra12, Rb12, Rc12, Bh10, Bi10, Bj10, Bk10
