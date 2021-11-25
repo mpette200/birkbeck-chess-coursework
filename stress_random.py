@@ -14,6 +14,7 @@ class PatchIO:
         self.outputs: Queue = Queue(out_limit)
         self.out_limit = out_limit
         self.lock = Lock()
+        self.pending_validation = ''
         self.i = 0
         random.seed(seed)
 
@@ -21,6 +22,8 @@ class PatchIO:
         if self.i == 0:
             self.i += 1
             out = self.board_filename
+            self.print(msg)
+            self.print(out)
         else:
             x1 = random.randint(1, self.board_size)
             y1 = random.randint(1, self.board_size)
@@ -29,43 +32,44 @@ class PatchIO:
             source = index2location(x1, y1)
             dest = index2location(x2, y2)
             out = source + dest
-        self.print(msg)
-        self.print(out)
+            self.pending_validation = out
         return out
 
     def print(self, msg: str) -> None:
+        if "after White's move" in msg:
+            self.print(self.pending_validation)
+        # falls through
         with self.lock:
             while True:
                 try:
                     self.outputs.put_nowait(msg)
                     break
                 except queue.Full:
-                    try:
-                        self.outputs.get_nowait()
-                    except queue.Empty:
-                        pass
+                    self.outputs.get(timeout=0.2)
 
     def get_outputs(self) -> str:
         out: list[str] = []
         with self.lock:
             while len(out) < self.out_limit:
                 try:
-                    out.append(self.outputs.get_nowait())
+                    out.append(self.outputs.get(timeout=0.2))
                 except queue.Empty:
-                    pass
+                    break
             return '\n'.join(out)
 
 
 def run_process_patch_inputs(board_filename: str,
                              size: int, seed: int) -> None:
-    patch = PatchIO(board_filename, size, seed, 10)
+    out_limit = 20
+    timeout = 10
+    patch = PatchIO(board_filename, size, seed, out_limit)
     chess_puzzle.input = patch.input
     chess_puzzle.print = patch.print
     p = Process(target=chess_puzzle.main)
     p.start()
     print('Running ' + board_filename + ': ', end='', flush=True)
     t = 0
-    while p.exitcode is None and t < 5:
+    while p.exitcode is None and t < timeout:
         # print a dot for each second elapsed
         p.join(1)
         print('.', end='', flush=True)
