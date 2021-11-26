@@ -703,11 +703,21 @@ def conf2unicode(B: Board) -> str:
 
 def parse_move(
         move: str, side: bool, B: Board) -> Optional[tuple[Piece, int, int]]:
-    '''Validates move given as a string in form 'a1b2'. Return value is a
+    """Validates move given as a string in form 'a1b2'. Return value is a
     tuple comprising: piece, x, y where piece is the piece to move and
     x and y are the destination coordinates.
     Returns None if it is not a valid move.
-    '''
+    Example:
+    >>> from io import StringIO
+    >>> stream = StringIO('''4
+    ... Kd2
+    ... Kd4''')
+    >>> b = read_board_txt(stream)
+    >>> repr(parse_move('a1b2', side=True, B=b))  # not valid move
+    'None'
+    >>> repr(parse_move('d2c2', side=True, B=b))  # is valid
+    '(King(4, 2, white), 3, 2)'
+    """
     letters = 'abcdefghijklmnopqrstuvwxyz'
     move = move.strip()
     # validate length
@@ -750,8 +760,14 @@ def parse_move(
 
 
 def move_to_txt(move: tuple[Piece, int, int]) -> str:
-    '''Converts a move tuple to a text representation of the move.
+    '''Converts a move tuple to a text representation of the move, where
+    move is a tuple comprising: piece, x, y where piece is the piece to move
+    and x, y are the destination coordinates.
     Returns a string of the form 'a2b3'
+    Example:
+    >>> p = Bishop(4, 2, True)
+    >>> move_to_txt((p, 6, 3))
+    'd2f3'
     '''
     piece, x, y = move
     source = index2location(piece.pos_x, piece.pos_y)
@@ -792,7 +808,7 @@ def prompt_save(B: Board) -> None:
             save_board(filename, B)
             break
         except OSError:
-            # OSError is parent of FileNotFoundError
+            # OSError is parent of FileExistsError
             err_msg = '\nNot a valid filename. '
 
 
@@ -824,7 +840,7 @@ def prompt_file() -> Optional[Board]:
 
 def check_for_termination(cur_side: bool, B: Board) -> bool:
     '''Checks whether game has finished or not.
-    Returns true if side is either in checkmate or has not moves.
+    Returns true if side is either in checkmate or has no possible moves.
     Also prints an appropriate message to console.
     '''
     name = {True: 'White', False: 'Black'}

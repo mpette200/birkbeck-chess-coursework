@@ -80,7 +80,8 @@ def test_read_board1() -> None:
         found = False
         for piece1 in B1[1]:
             if piece.pos_x == piece1.pos_x and piece.pos_y == piece1.pos_y \
-                    and type(piece) == type(piece1):
+                    and type(piece) == type(piece1) \
+                    and piece.side == piece1.side:
                 found = True
         assert found
 
@@ -89,7 +90,8 @@ def test_read_board1() -> None:
         found = False
         for piece in B[1]:
             if piece.pos_x == piece1.pos_x and piece.pos_y == piece1.pos_y \
-                    and type(piece) == type(piece1):
+                    and type(piece) == type(piece1) \
+                    and piece.side == piece1.side:
                 found = True
         assert found
 
@@ -377,6 +379,7 @@ class TestMovePieces:
             Ka1
             Ka7, Rd4, Bb4, Bd6, Bf4, Bd2'''
         ))
+        copy_b = self.duplicate_board(b)
         Rd4 = piece_at(4, 4, b)
         valid_destinations = [
             (3, 4),
@@ -390,6 +393,8 @@ class TestMovePieces:
                     assert Rd4.can_move_to(x, y, b)
                 else:
                     assert not Rd4.can_move_to(x, y, b)
+        # check that original board is not modified
+        assert b == copy_b
 
     def test_rook_can_move_to_out_of_check(self) -> None:
         board = self.rook_test_board()
@@ -479,6 +484,7 @@ class TestMovePieces:
             Kd7, Bd4, Rb2, Rf6, Rb6, Rf2
             Kd1'''
         ))
+        copy_b = self.duplicate_board(b)
         Bd4 = piece_at(4, 4, b)
         valid_destinations = [
             (3, 5),
@@ -492,6 +498,8 @@ class TestMovePieces:
                     assert Bd4.can_move_to(x, y, b)
                 else:
                     assert not Bd4.can_move_to(x, y, b)
+        # check that original board is not modified
+        assert b == copy_b
 
     def test_bishop_can_move_to_out_of_check(self) -> None:
         board = self.bishop_test_board()

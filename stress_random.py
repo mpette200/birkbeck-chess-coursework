@@ -11,7 +11,7 @@ class PatchIO:
         'Patcher to supply inputs, get outputs from program'
         self.board_filename = board_filename
         self.board_size = board_size
-        self.outputs: Queue = Queue(out_limit)
+        self.outputs: Queue[str] = Queue(out_limit)
         self.out_limit = out_limit
         self.lock = Lock()
         self.pending_validation = ''
