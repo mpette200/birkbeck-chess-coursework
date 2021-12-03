@@ -63,8 +63,8 @@ def run_process_patch_inputs(board_filename: str,
     out_limit = 20
     timeout = 10
     patch = PatchIO(board_filename, size, seed, out_limit)
-    chess_puzzle.input = patch.input
-    chess_puzzle.print = patch.print
+    setattr(chess_puzzle, 'input', patch.input)
+    setattr(chess_puzzle, 'print', patch.print)
     p = Process(target=chess_puzzle.main)
     p.start()
     print('Running ' + board_filename + ': ', end='', flush=True)
